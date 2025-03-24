@@ -5,6 +5,8 @@ export const COLORS = {
   text: '#FFFFFF',
   textSecondary: '#CCCCCC',
   error: '#CF6679',
+  border: '#FFC107',
+  cardBackground: '#002E5F',
 };
 
 export const FONTS = {
@@ -19,14 +21,16 @@ export const SPACING = {
   md: 16,
   lg: 24,
   xl: 32,
+  xxl: 44,
+  xxxl: 52,
 };
 
 export const SIZES = {
-  xs: 12,
-  sm: 14,
-  md: 16,
-  lg: 18,
-  xl: 20,
-  xxl: 24,
-  title: 32,
+  xs: 14,
+  sm: 16,
+  md: 20,
+  lg: 24,
+  xl: 28,
+  xxl: 32,
+  title: 36,
 };

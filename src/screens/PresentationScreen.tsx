@@ -16,8 +16,7 @@ export const PresentationScreen: React.FC = () => {
   const navigation = useNavigation<PresentationScreenNavigationProp>();
 
   const handleUnderstand = () => {
-    // Navigation vers l'écran principal sera implémentée plus tard
-    console.log('Compris !');
+    navigation.navigate('PinCode');
   };
 
   return (
@@ -60,6 +59,7 @@ export const PresentationScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    marginTop: SPACING.xxxl,
     backgroundColor: COLORS.background,
   },
   scrollContent: {
@@ -71,6 +71,7 @@ const styles = StyleSheet.create({
   },
   paragraph: {
     marginBottom: SPACING.lg,
+    marginTop: SPACING.md,
   },
   footer: {
     padding: SPACING.xl,
