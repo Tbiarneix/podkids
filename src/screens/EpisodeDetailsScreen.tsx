@@ -51,6 +51,8 @@ export const EpisodeDetailsScreen: React.FC = () => {
   const [podcast, setPodcast] = useState<Podcast | null>(null);
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [sliderValue, setSliderValue] = useState(0);
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [currentTimeText, setCurrentTimeText] = useState('0:00');
 
   const screenWidth = Dimensions.get('window').width;
   
@@ -83,10 +85,10 @@ export const EpisodeDetailsScreen: React.FC = () => {
 
   // Mettre à jour le slider lorsque la progression change
   useEffect(() => {
-    if (isCurrentEpisode && episode) {
+    if (isCurrentEpisode && episode && !isSeeking) {
       setSliderValue(progress);
     }
-  }, [isCurrentEpisode, progress, episode]);
+  }, [isCurrentEpisode, progress, episode, isSeeking]);
 
   const handleBack = () => {
     navigation.goBack();
@@ -102,6 +104,34 @@ export const EpisodeDetailsScreen: React.FC = () => {
       // Sinon, on lance la lecture de cet épisode
       playEpisode(episode, podcast);
     }
+  };
+
+  const handleSliderChange = (value: number) => {
+    if (!episode) return;
+    
+    setIsSeeking(true);
+    setSliderValue(value);
+  };
+
+  const handleSliderComplete = async (value: number) => {
+    if (!episode) return;
+    
+    const newTime = Math.floor(value * episode.duration);
+    
+    if (isCurrentEpisode) {
+      // Si c'est l'épisode en cours de lecture, on utilise seekTo du contexte
+      seekTo(newTime);
+    } else {
+      // Sinon, on met juste à jour le statut
+      await PodcastService.updateEpisodeStatus(
+        podcast!.id,
+        episode.id,
+        episode.status,
+        newTime
+      );
+    }
+    
+    setIsSeeking(false);
   };
 
   const updateEpisodeStatus = async (status: EpisodeStatus) => {
@@ -134,31 +164,6 @@ export const EpisodeDetailsScreen: React.FC = () => {
       });
     } catch (error) {
       console.error('Erreur lors de la mise à jour du statut de l\'épisode:', error);
-    }
-  };
-
-  const handleSliderChange = (value: number) => {
-    if (!episode) return;
-    
-    setSliderValue(value);
-  };
-
-  const handleSliderComplete = async (value: number) => {
-    if (!episode) return;
-    
-    const newTime = Math.floor(value * episode.duration);
-    
-    if (isCurrentEpisode) {
-      // Si c'est l'épisode en cours de lecture, on utilise seekTo du contexte
-      seekTo(newTime);
-    } else {
-      // Sinon, on met juste à jour le statut
-      await PodcastService.updateEpisodeStatus(
-        podcast!.id,
-        episode.id,
-        episode.status,
-        newTime
-      );
     }
   };
 
@@ -284,7 +289,7 @@ export const EpisodeDetailsScreen: React.FC = () => {
               style={styles.slider}
               minimumValue={0}
               maximumValue={1}
-              value={isCurrentEpisode ? progress : (episode.timestamp || 0) / episode.duration}
+              value={sliderValue}
               minimumTrackTintColor={COLORS.primary}
               maximumTrackTintColor={COLORS.textSecondary}
               thumbTintColor={COLORS.primary}
@@ -443,14 +448,15 @@ const styles = StyleSheet.create({
   sliderContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.lg,
+    width: '100%',
+    marginBottom: SPACING.md,
   },
   slider: {
     flex: 1,
     height: 40,
   },
   timeText: {
-    color: COLORS.textSecondary,
+    color: COLORS.text,
     width: 40,
     textAlign: 'center',
   },

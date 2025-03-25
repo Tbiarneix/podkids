@@ -96,9 +96,11 @@ export const HomeProfileScreen: React.FC = () => {
   }, []);
 
   const handleEpisodePress = (episode: ContinueListeningEpisode) => {
-    // Navigation vers l'écran de lecture de l'épisode
-    // À implémenter plus tard
-    console.log('Continuer l\'écoute de l\'épisode:', episode.name);
+    // Navigation vers la fiche détaillée de l'épisode
+    navigation.navigate('EpisodeDetails', {
+      podcastId: episode.podcastId,
+      episodeId: episode.id
+    });
   };
 
   const handleLibraryPress = () => {
