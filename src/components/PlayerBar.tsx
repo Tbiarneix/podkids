@@ -13,6 +13,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from './Typography';
 import { COLORS, SPACING } from '../utils/theme';
+import { formatTime } from '../utils/timeUtils';
 import { Episode, Podcast } from '../types/podcast';
 import { RootStackParamList } from '../types/navigation';
 import { usePlayer } from '../contexts/PlayerContext';
@@ -46,10 +47,11 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
 
   // Mettre à jour la progression et le temps restant en temps réel
   useEffect(() => {
-    if (!isSeeking) {
-      const remaining = episode.duration - currentTime;
+    if (!isSeeking && episode?.duration) {
+      // Calculer le temps restant précisément
+      const remaining = Math.max(0, episode.duration - currentTime);
       setRemainingTimeText(`${formatTime(remaining)} restantes`);
-      setSeekPosition(currentTime / episode.duration);
+      setSeekPosition(episode.duration > 0 ? currentTime / episode.duration : 0);
     }
   }, [progress, currentTime, episode.duration, isSeeking]);
 
@@ -68,12 +70,6 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
     }
   };
 
-  const formatTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
-  };
-
   // Gestion du glissement sur la barre de progression
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -90,11 +86,18 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
       position = Math.max(0, Math.min(1, position));
       
       setSeekPosition(position);
-      setRemainingTimeText(`${formatTime(episode.duration * (1 - position))} restantes`);
+      
+      // Calculer le temps restant précisément pendant le seeking
+      if (episode?.duration) {
+        const remainingTime = episode.duration * (1 - position);
+        setRemainingTimeText(`${formatTime(remainingTime)} restantes`);
+      }
     },
     onPanResponderRelease: () => {
-      const newPosition = seekPosition * episode.duration;
-      seekTo(newPosition);
+      if (episode?.duration) {
+        const newPosition = seekPosition * episode.duration;
+        seekTo(newPosition);
+      }
       setIsSeeking(false);
     },
   });

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as rssParser from 'react-native-rss-parser';
+import { RssParserService, RssFeed, RssFeedItem } from './RssParserService';
 import { Podcast, Episode, PodcastType, AgeRange, EpisodeStatus } from '../types/podcast';
+import { convertDurationToSeconds } from '../utils/timeUtils';
 
 const PODCASTS_STORAGE_KEY = '@podkids:podcasts';
 
@@ -12,6 +13,34 @@ const generateUniqueId = (): string => {
     return v.toString(16);
   });
 };
+
+/**
+ * Convertit une durée au format HH:MM:SS ou MM:SS ou secondes en secondes
+ * @param duration La durée à convertir
+ * @returns La durée en secondes
+ */
+// const convertDurationToSeconds = (duration?: string): number => {
+//   if (!duration) return 0;
+  
+//   // Si c'est déjà un nombre, le retourner directement
+//   if (!isNaN(Number(duration))) {
+//     return Number(duration);
+//   }
+  
+//   // Format HH:MM:SS ou MM:SS
+//   const parts = duration.split(':').map(part => parseInt(part, 10));
+  
+//   if (parts.length === 3) {
+//     // Format HH:MM:SS
+//     return parts[0] * 3600 + parts[1] * 60 + parts[2];
+//   } else if (parts.length === 2) {
+//     // Format MM:SS
+//     return parts[0] * 60 + parts[1];
+//   }
+  
+//   // Si le format n'est pas reconnu, retourner 0
+//   return 0;
+// };
 
 export class PodcastService {
   /**
@@ -56,34 +85,11 @@ export class PodcastService {
   /**
    * Récupère et parse un flux RSS
    */
-  static async fetchRssFeed(url: string): Promise<rssParser.Feed> {
+  static async fetchRssFeed(url: string): Promise<RssFeed> {
     try {
-      // Ajouter https:// si l'URL n'a pas de protocole
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        url = 'https://' + url;
-      }
-
-      // Récupérer le contenu du flux
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      // Convertir la réponse en texte
-      const responseText = await response.text();
-      
-      if (responseText.length === 0) {
-        throw new Error('Le flux RSS est vide');
-      }
-      
-      // Parser le texte en flux RSS
-      try {
-        const feed = await rssParser.parse(responseText);
-        return feed;
-      } catch (parseError) {
-        throw new Error(`Erreur de parsing du flux RSS: ${parseError instanceof Error ? parseError.message : 'Format non reconnu'}`);
-      }
+      // Utiliser le service RssParser pour récupérer et parser le flux RSS
+      const feed = await RssParserService.parseRssFeed(url);
+      return feed;
     } catch (error) {
       console.error('Erreur lors de la récupération du flux RSS:', error);
       throw error;
@@ -120,22 +126,22 @@ export class PodcastService {
         id: generateUniqueId(),
         name: feed.title || 'Podcast sans titre',
         description: feed.description || '',
-        cover: feed.image?.url || '',
+        cover: feed.imageUrl || feed.itunesImage || '',
         url: url,
-        author: feed.itunes?.owner?.name || (feed as any).creator || 'Auteur inconnu',
+        author: feed.itunesOwnerName || feed.itunesAuthor || 'Auteur inconnu',
         types: podcastTypes,
         ageRanges: ageRanges,
         subscription: true,
-        episodes: feed.items.map((item: rssParser.FeedItem) => ({
+        episodes: feed.items.map((item: RssFeedItem) => ({
           id: generateUniqueId(),
           name: item.title || 'Épisode sans titre',
-          description: item.description || '',
-          cover: item.itunes?.image || feed.image?.url || '',
-          url: item.enclosures?.[0]?.url || '',
-          duration: item.itunes?.duration ? parseInt(item.itunes.duration) || 0 : 0,
+          description: item.description || item.contentEncoded || item.content || '',
+          cover: item.itunesImage || feed.imageUrl || feed.itunesImage || '',
+          url: item.enclosureUrl || '',
+          duration: convertDurationToSeconds(item.itunesDuration),
           status: EpisodeStatus.TO_LISTEN,
           timestamp: 0,
-          publicationDate: item.published ? new Date(item.published).getTime() : Date.now()
+          publicationDate: item.pubDate ? new Date(item.pubDate).getTime() : Date.now()
         }))
       };
       
@@ -209,7 +215,7 @@ export class PodcastService {
     podcastId: string,
     episodeId: string,
     status: EpisodeStatus,
-    timestamp: number
+    timestamp?: number
   ): Promise<void> {
     try {
       const podcasts = await this.getPodcasts();
@@ -218,15 +224,20 @@ export class PodcastService {
       if (podcastIndex === -1) {
         throw new Error('Podcast non trouvé');
       }
-
+      
       const episodeIndex = podcasts[podcastIndex].episodes.findIndex(e => e.id === episodeId);
       
       if (episodeIndex === -1) {
         throw new Error('Épisode non trouvé');
       }
 
+      // Mettre à jour le statut de l'épisode
       podcasts[podcastIndex].episodes[episodeIndex].status = status;
-      podcasts[podcastIndex].episodes[episodeIndex].timestamp = timestamp;
+      
+      // Mettre à jour le timestamp si fourni
+      if (timestamp !== undefined) {
+        podcasts[podcastIndex].episodes[episodeIndex].timestamp = timestamp;
+      }
 
       await AsyncStorage.setItem(PODCASTS_STORAGE_KEY, JSON.stringify(podcasts));
     } catch (error) {
@@ -236,9 +247,13 @@ export class PodcastService {
   }
 
   /**
-   * Rafraîchit les épisodes d'un podcast à partir de son flux RSS
+   * Met à jour la position de lecture d'un épisode
    */
-  static async refreshPodcastEpisodes(podcastId: string): Promise<Podcast> {
+  static async updateEpisodeTimestamp(
+    podcastId: string,
+    episodeId: string,
+    timestamp: number
+  ): Promise<void> {
     try {
       const podcasts = await this.getPodcasts();
       const podcastIndex = podcasts.findIndex(p => p.id === podcastId);
@@ -246,59 +261,136 @@ export class PodcastService {
       if (podcastIndex === -1) {
         throw new Error('Podcast non trouvé');
       }
+      
+      const episodeIndex = podcasts[podcastIndex].episodes.findIndex(e => e.id === episodeId);
+      
+      if (episodeIndex === -1) {
+        throw new Error('Épisode non trouvé');
+      }
+      
+      podcasts[podcastIndex].episodes[episodeIndex].timestamp = timestamp;
+      await AsyncStorage.setItem(PODCASTS_STORAGE_KEY, JSON.stringify(podcasts));
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la position de lecture:', error);
+      throw error;
+    }
+  }
 
+  /**
+   * Rafraîchit les épisodes d'un podcast à partir de son flux RSS
+   */
+  static async refreshPodcastEpisodes(podcastId: string): Promise<Podcast | null> {
+    try {
+      const podcasts = await this.getPodcasts();
+      const podcastIndex = podcasts.findIndex(p => p.id === podcastId);
+      
+      if (podcastIndex === -1) {
+        throw new Error('Podcast non trouvé');
+      }
+      
       const podcast = podcasts[podcastIndex];
+      
+      // Récupérer le flux RSS mis à jour
       const feed = await this.fetchRssFeed(podcast.url);
-
-      // Créer un map des épisodes existants pour conserver leur statut
-      const existingEpisodes = new Map();
+      
+      // Créer une map des épisodes existants pour préserver leurs statuts
+      const existingEpisodes = new Map<string | undefined, Episode>();
       podcast.episodes.forEach(episode => {
         existingEpisodes.set(episode.name, episode);
       });
 
       // Mettre à jour les épisodes
-      podcast.episodes = feed.items.map((item: rssParser.FeedItem) => {
+      podcast.episodes = feed.items.map((item: RssFeedItem) => {
         const existingEpisode = existingEpisodes.get(item.title);
         
         if (existingEpisode) {
-          // Conserver le statut et le timestamp des épisodes existants
           return {
             ...existingEpisode,
-            description: item.description || existingEpisode.description,
-            cover: item.itunes?.image || feed.image?.url || existingEpisode.cover,
-            url: item.enclosures?.[0]?.url || existingEpisode.url || '',
-            duration: item.itunes?.duration ? parseInt(item.itunes.duration) || existingEpisode.duration : existingEpisode.duration,
-            publicationDate: item.published ? new Date(item.published).getTime() : existingEpisode.publicationDate
+            description: item.description || item.contentEncoded || item.content || existingEpisode.description,
+            cover: item.itunesImage || feed.imageUrl || existingEpisode.cover,
+            url: item.enclosureUrl || existingEpisode.url || '',
+            duration: convertDurationToSeconds(item.itunesDuration),
+            publicationDate: item.pubDate ? new Date(item.pubDate).getTime() : existingEpisode.publicationDate
           };
         } else {
           // Créer un nouvel épisode
           return {
             id: generateUniqueId(),
             name: item.title || 'Épisode sans titre',
-            description: item.description || '',
-            cover: item.itunes?.image || feed.image?.url || '',
-            url: item.enclosures?.[0]?.url || '',
-            duration: item.itunes?.duration ? parseInt(item.itunes.duration) || 0 : 0,
+            description: item.description || item.contentEncoded || item.content || '',
+            cover: item.itunesImage || feed.imageUrl || '',
+            url: item.enclosureUrl || '',
+            duration: convertDurationToSeconds(item.itunesDuration),
             status: EpisodeStatus.TO_LISTEN,
             timestamp: 0,
-            publicationDate: item.published ? new Date(item.published).getTime() : Date.now()
+            publicationDate: item.pubDate ? new Date(item.pubDate).getTime() : Date.now()
           };
         }
       });
-
-      // Mettre à jour les informations du podcast
-      podcast.name = feed.title || podcast.name;
-      podcast.description = feed.description || podcast.description;
-      podcast.cover = feed.image?.url || podcast.cover;
-
-      // Sauvegarder les modifications
+      
+      // Mettre à jour les podcasts
       podcasts[podcastIndex] = podcast;
       await AsyncStorage.setItem(PODCASTS_STORAGE_KEY, JSON.stringify(podcasts));
-
+      
       return podcast;
     } catch (error) {
       console.error('Erreur lors du rafraîchissement des épisodes:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Récupère les podcasts par tranche d'âge
+   */
+  static async getPodcastsByAgeRange(ageRange: AgeRange): Promise<Podcast[]> {
+    try {
+      const podcasts = await this.getPodcasts();
+      return podcasts.filter(podcast => podcast.ageRanges.includes(ageRange));
+    } catch (error) {
+      console.error('Erreur lors de la récupération des podcasts par tranche d\'âge:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Récupère les podcasts par type
+   */
+  static async getPodcastsByType(type: PodcastType): Promise<Podcast[]> {
+    try {
+      const podcasts = await this.getPodcasts();
+      return podcasts.filter(podcast => podcast.types.includes(type));
+    } catch (error) {
+      console.error('Erreur lors de la récupération des podcasts par type:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Récupère les podcasts par tranche d'âge et type
+   */
+  static async getPodcastsByAgeRangeAndType(ageRange: AgeRange, type: PodcastType): Promise<Podcast[]> {
+    try {
+      const podcasts = await this.getPodcasts();
+      return podcasts.filter(
+        podcast => podcast.ageRanges.includes(ageRange) && podcast.types.includes(type)
+      );
+    } catch (error) {
+      console.error('Erreur lors de la récupération des podcasts par tranche d\'âge et type:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Récupère les podcasts favoris
+   * @returns Liste des podcasts favoris
+   */
+  static async getFavoritePodcasts(): Promise<Podcast[]> {
+    try {
+      const podcasts = await this.getPodcasts();
+      return podcasts.filter(podcast => podcast.subscription);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des podcasts favoris:', error);
+      return [];
     }
   }
 }

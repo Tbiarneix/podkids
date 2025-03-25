@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -10,20 +10,49 @@ import { COLORS, SPACING } from '../utils/theme';
 
 interface PinInputProps {
   length?: number;
+  value?: string;
+  onChange?: (value: string) => void;
   onComplete?: (pin: string) => void;
 }
 
-export const PinInput: React.FC<PinInputProps> = ({ 
+export interface PinInputRef {
+  focus: () => void;
+  reset: () => void;
+}
+
+export const PinInput = forwardRef<PinInputRef, PinInputProps>(({ 
   length = 5, 
+  value = '',
+  onChange,
   onComplete 
-}) => {
+}, ref) => {
   const [pin, setPin] = useState<string[]>(Array(length).fill(''));
   const inputRefs = useRef<Array<TextInput | null>>([]);
+
+  // Exposer les méthodes via la ref
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      inputRefs.current[0]?.focus();
+    },
+    reset: () => {
+      resetPin();
+    }
+  }));
 
   // Initialiser les refs
   useEffect(() => {
     inputRefs.current = inputRefs.current.slice(0, length);
   }, [length]);
+
+  // Mettre à jour le PIN interne lorsque la valeur externe change
+  useEffect(() => {
+    if (value === '') {
+      setPin(Array(length).fill(''));
+    } else {
+      const valueArray = value.split('').concat(Array(length).fill('')).slice(0, length);
+      setPin(valueArray);
+    }
+  }, [value, length]);
 
   // Gérer la saisie d'un chiffre
   const handleChange = (text: string, index: number) => {
@@ -40,6 +69,10 @@ export const PinInput: React.FC<PinInputProps> = ({
     newPin[index] = text;
     setPin(newPin);
 
+    // Mettre à jour la valeur externe
+    const newValue = newPin.join('');
+    onChange && onChange(newValue);
+
     // Focus sur l'input suivant
     if (text && index < length - 1) {
       inputRefs.current[index + 1]?.focus();
@@ -47,7 +80,7 @@ export const PinInput: React.FC<PinInputProps> = ({
 
     // Vérifier si le code PIN est complet
     if (text && index === length - 1) {
-      const completePin = [...newPin].join('');
+      const completePin = newPin.join('');
       Keyboard.dismiss();
       onComplete && onComplete(completePin);
     }
@@ -59,6 +92,11 @@ export const PinInput: React.FC<PinInputProps> = ({
       const newPin = [...pin];
       newPin[index - 1] = '';
       setPin(newPin);
+      
+      // Mettre à jour la valeur externe
+      const newValue = newPin.join('');
+      onChange && onChange(newValue);
+      
       inputRefs.current[index - 1]?.focus();
     }
   };
@@ -66,6 +104,7 @@ export const PinInput: React.FC<PinInputProps> = ({
   // Réinitialiser le PIN
   const resetPin = () => {
     setPin(Array(length).fill(''));
+    onChange && onChange('');
     inputRefs.current[0]?.focus();
   };
 
@@ -92,7 +131,7 @@ export const PinInput: React.FC<PinInputProps> = ({
       ))}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

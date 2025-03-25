@@ -7,10 +7,18 @@ import {
   TextInput,
   ScrollView,
   ActivityIndicator,
-  Alert
+  Alert,
+  Modal,
+  Text
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { 
+  useNavigation, 
+  useRoute, 
+  RouteProp 
+} from '@react-navigation/native';
+import { 
+  NativeStackNavigationProp 
+} from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '../components/Typography';
 import { Button } from '../components/Button';
@@ -19,6 +27,7 @@ import { COLORS, SPACING } from '../utils/theme';
 import { PodcastService } from '../services/PodcastService';
 import { RootStackParamList } from '../types/navigation';
 import { AgeRange, PodcastType, PodcastTypeDescription } from '../types/podcast';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type EditPodcastScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -41,6 +50,8 @@ export const EditPodcastScreen: React.FC = () => {
   const [selectedAgeRanges, setSelectedAgeRanges] = useState<AgeRange[]>([]);
   const [selectedPodcastTypes, setSelectedPodcastTypes] = useState<PodcastType[]>([]);
   const [urlError, setUrlError] = useState('');
+  const [showRawData, setShowRawData] = useState(false);
+  const [rawPodcastData, setRawPodcastData] = useState<string>('');
 
   // Convertir les enums en tableaux pour l'affichage
   const ageRanges = Object.values(AgeRange);
@@ -207,6 +218,39 @@ export const EditPodcastScreen: React.FC = () => {
     );
   };
 
+  const handleViewRawData = async () => {
+    try {
+      setLoading(true);
+      // Récupérer les données brutes depuis AsyncStorage
+      const podcastsJson = await AsyncStorage.getItem('@podkids:podcasts');
+      
+      if (podcastsJson) {
+        const allPodcasts = JSON.parse(podcastsJson);
+        // Trouver le podcast spécifique
+        const targetPodcast = allPodcasts.find((p: any) => p.id === podcastId);
+        
+        if (targetPodcast) {
+          // Formater les données pour une meilleure lisibilité
+          setRawPodcastData(JSON.stringify(targetPodcast, null, 2));
+          setShowRawData(true);
+        } else {
+          Alert.alert('Erreur', 'Podcast non trouvé dans AsyncStorage');
+        }
+      } else {
+        Alert.alert('Erreur', 'Aucune donnée de podcast trouvée dans AsyncStorage');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération des données brutes:', error);
+      Alert.alert('Erreur', 'Impossible de récupérer les données brutes du podcast');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCloseRawData = () => {
+    setShowRawData(false);
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -315,7 +359,47 @@ export const EditPodcastScreen: React.FC = () => {
           style={styles.deleteButton}
           variant="outline"
         />
+
+        <Button
+          title="Voir les données brutes"
+          onPress={handleViewRawData}
+          fullWidth
+          style={styles.rawDataButton}
+          variant="outline"
+        />
       </ScrollView>
+
+      {/* Modal pour afficher les données brutes */}
+      <Modal
+        visible={showRawData}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={handleCloseRawData}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Typography variant="title" style={styles.modalTitle}>
+                Données brutes du podcast
+              </Typography>
+              <TouchableOpacity onPress={handleCloseRawData} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.rawDataScrollView}>
+              <Text style={styles.rawDataText}>{rawPodcastData}</Text>
+            </ScrollView>
+            
+            <Button
+              title="Fermer"
+              onPress={handleCloseRawData}
+              fullWidth
+              style={styles.closeModalButton}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -393,7 +477,50 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   deleteButton: {
-    marginBottom: SPACING.xxxl,
+    marginTop: SPACING.md,
+    backgroundColor: 'transparent',
     borderColor: COLORS.error,
+  },
+  rawDataButton: {
+    marginTop: SPACING.xl,
+    backgroundColor: 'transparent',
+    borderColor: COLORS.primary,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    maxHeight: '80%',
+    backgroundColor: COLORS.background,
+    borderRadius: 16,
+    padding: SPACING.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  modalTitle: {
+    flex: 1,
+  },
+  closeButton: {
+    padding: SPACING.sm,
+  },
+  rawDataScrollView: {
+    maxHeight: '80%',
+  },
+  rawDataText: {
+    color: COLORS.text,
+    fontFamily: 'Rubik-Regular',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  closeModalButton: {
+    marginTop: SPACING.lg,
   },
 });

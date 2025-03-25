@@ -19,6 +19,7 @@ import { PodcastService } from '../services/PodcastService';
 import { usePlayer } from '../contexts/PlayerContext';
 import { RootStackParamList } from '../types/navigation';
 import { Podcast, Episode, EpisodeStatus } from '../types/podcast';
+import { formatTime } from '../utils/timeUtils';
 
 type EpisodeDetailsScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -90,6 +91,19 @@ export const EpisodeDetailsScreen: React.FC = () => {
     }
   }, [isCurrentEpisode, progress, episode, isSeeking]);
 
+  // Vérifier que la durée de l'épisode est valide
+  useEffect(() => {
+    if (episode && episode.duration <= 0) {
+      console.warn('Durée de l\'épisode invalide:', episode.duration);
+      
+      // Si l'épisode est en cours de lecture, utiliser la durée du contexte si disponible
+      if (isCurrentEpisode && currentEpisode && currentEpisode.duration > 0) {
+        const updatedEpisode = { ...episode, duration: currentEpisode.duration };
+        setEpisode(updatedEpisode);
+      }
+    }
+  }, [episode, isCurrentEpisode, currentEpisode]);
+
   const handleBack = () => {
     navigation.goBack();
   };
@@ -149,28 +163,12 @@ export const EpisodeDetailsScreen: React.FC = () => {
       // Mettre à jour l'état local
       const updatedEpisode = {
         ...episode,
-        status,
-        timestamp: isCurrentEpisode ? currentTime : episode.timestamp || 0
+        status
       };
-      
-      const updatedEpisodes = podcast.episodes.map(ep => 
-        ep.id === episode.id ? updatedEpisode : ep
-      );
-      
       setEpisode(updatedEpisode);
-      setPodcast({
-        ...podcast,
-        episodes: updatedEpisodes
-      });
     } catch (error) {
       console.error('Erreur lors de la mise à jour du statut de l\'épisode:', error);
     }
-  };
-
-  const formatTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
   };
 
   const markAsListened = async () => {
@@ -295,10 +293,13 @@ export const EpisodeDetailsScreen: React.FC = () => {
               thumbTintColor={COLORS.primary}
               onValueChange={handleSliderChange}
               onSlidingComplete={handleSliderComplete}
+              disabled={!episode || episode.duration <= 0}
             />
             
             <Typography variant="caption" style={styles.timeText}>
-              {formatTime(episode.duration)}
+              {episode && episode.duration > 0 
+                ? formatTime(episode.duration) 
+                : formatTime(0)}
             </Typography>
           </View>
 

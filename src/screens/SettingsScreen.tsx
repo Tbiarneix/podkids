@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, SafeAreaView, TouchableOpacity, FlatList } from 'react-native';
+import { View, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, Alert, ScrollView } from 'react-native';
 import { Typography } from '../components/Typography';
 import { Toast } from '../components/Toast';
 import { ProfileItem } from '../components/ProfileItem';
@@ -11,6 +11,7 @@ import { RootStackParamList } from '../types/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { ProfileService } from '../services/ProfileService';
 import { Profile } from '../types/profile';
+import { StorageUtils } from '../utils/StorageUtils';
 
 type SettingsScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -108,10 +109,41 @@ export const SettingsScreen: React.FC = () => {
     }
   };
 
+  const handleClearStorage = () => {
+    Alert.alert(
+      "Vider le stockage",
+      "Êtes-vous sûr de vouloir vider tout le stockage ? Cette action effacera tous les profils, podcasts et paramètres. Cette opération est irréversible.",
+      [
+        {
+          text: "Annuler",
+          style: "cancel"
+        },
+        {
+          text: "Vider",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await StorageUtils.clearAllStorage();
+              setSuccessMessage('Stockage vidé avec succès');
+              setShowSuccessToast(true);
+              // Recharger les profils
+              setProfiles([]);
+            } catch (error) {
+              console.error('Erreur lors du vidage du stockage:', error);
+              Alert.alert("Erreur", "Une erreur est survenue lors du vidage du stockage.");
+            }
+          }
+        }
+      ],
+      { cancelable: true }
+    );
+  };
+
   const renderSettingItem = (
     title: string, 
     onPress: () => void, 
-    isLast: boolean = false
+    isLast: boolean = false,
+    isDestructive: boolean = false
   ) => (
     <TouchableOpacity 
       style={[
@@ -120,8 +152,13 @@ export const SettingsScreen: React.FC = () => {
       ]} 
       onPress={onPress}
     >
-      <Typography variant="body">{title}</Typography>
-      <Ionicons name="chevron-forward" size={24} color={COLORS.text} />
+      <Typography 
+        variant="body" 
+        style={isDestructive ? { color: '#FF3B30' } : {}}
+      >
+        {title}
+      </Typography>
+      <Ionicons name="chevron-forward" size={24} color={isDestructive ? '#FF3B30' : COLORS.text} />
     </TouchableOpacity>
   );
 
@@ -146,53 +183,58 @@ export const SettingsScreen: React.FC = () => {
         <View style={styles.placeholder} />
       </View>
 
-      <View style={styles.content}>
-        {profiles.length > 0 && (
-          <Button
-            title="Accéder à l'application"
-            onPress={handleAccessApp}
-            fullWidth
-            style={styles.accessAppButton}
-          />
-        )}
-        
-        <View style={styles.section}>
-          <Typography variant="subtitle" style={styles.sectionTitle}>
-            Gérer les profils
-          </Typography>
-          
-          {profiles.length > 0 ? (
-            <FlatList
-              data={profiles}
-              renderItem={renderProfileItem}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.content}>
+          {profiles.length > 0 && (
+            <Button
+              title="Accéder à l'application"
+              onPress={handleAccessApp}
+              fullWidth
+              style={styles.accessAppButton}
             />
-          ) : (
-            <View style={styles.emptyProfilesContainer}>
-              <Typography variant="body" center style={styles.emptyProfilesText}>
-                Aucun profil créé
-              </Typography>
-            </View>
           )}
           
-          {renderSettingItem('Ajouter un profil', handleAddProfile)}
-        </View>
+          <View style={styles.section}>
+            <Typography variant="subtitle" style={styles.sectionTitle}>
+              Gérer les profils
+            </Typography>
+            
+            {profiles.length > 0 ? (
+              <FlatList
+                data={profiles}
+                renderItem={renderProfileItem}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={false}
+              />
+            ) : (
+              <View style={styles.emptyProfilesContainer}>
+                <Typography variant="body" center style={styles.emptyProfilesText}>
+                  Aucun profil créé
+                </Typography>
+              </View>
+            )}
+            
+            {renderSettingItem('Ajouter un profil', handleAddProfile)}
+          </View>
 
-        <View style={styles.section}>
-          {renderSettingItem('Modifier le code pin', handleModifyPin)}
-        </View>
+          <View style={styles.section}>
+            {renderSettingItem('Modifier le code pin', handleModifyPin)}
+          </View>
 
-        <View style={styles.section}>
-          {renderSettingItem('Ajouter un podcast', handleAddPodcast)}
-          {renderSettingItem('Modifier un podcast', handleEditPodcast)}
-        </View>
+          <View style={styles.section}>
+            {renderSettingItem('Ajouter un podcast', handleAddPodcast)}
+            {renderSettingItem('Modifier un podcast', handleEditPodcast)}
+          </View>
 
-        <View style={styles.section}>
-          {renderSettingItem('Importer/Exporter des paramètres', () => console.log('Importer/Exporter des paramètres'))}
-        </View>
-      </View>
+          <View style={styles.section}>
+            {renderSettingItem('Importer/Exporter des paramètres', () => console.log('Importer/Exporter des paramètres'))}
+          </View>
 
+          <View style={styles.section}>
+            {renderSettingItem('Vider le stockage', handleClearStorage, true, true)}
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -200,25 +242,31 @@ export const SettingsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    marginTop: SPACING.xxxl,
     backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: SPACING.xxxl,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.lg,
+    paddingVertical: SPACING.md,
   },
   backButton: {
     padding: SPACING.sm,
   },
   placeholder: {
-    width: 40,
+    width: 44, // Même taille que le bouton retour pour équilibrer
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: SPACING.xxxl,
   },
   content: {
     flex: 1,
-    paddingHorizontal: SPACING.md,
+    padding: SPACING.md,
   },
   section: {
     marginBottom: SPACING.xl,

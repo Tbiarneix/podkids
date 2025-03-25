@@ -62,15 +62,15 @@ function MainApp() {
         const profiles = await ProfileService.getProfiles();
         
         if (!isPinConfigured) {
-          // Si pas de PIN configuré, aller à l'écran de configuration du PIN
-          setInitialRoute('PinCode');
+          // Si pas de PIN configuré, aller à l'écran de présentation
+          setInitialRoute('Presentation');
         } else if (profiles.length > 0) {
           // Si des profils existent, aller à l'écran de changement de profil
           setInitialRoute('ChangeProfile');
           setInitialParams({ initialProfileId: profiles[0].id });
         } else {
-          // Sinon, aller à l'écran de présentation
-          setInitialRoute('Presentation');
+          // Sinon, aller aux paramètres pour créer un profil
+          setInitialRoute('Settings');
         }
       } catch (error) {
         console.error('Erreur lors de la vérification de l\'état de l\'application:', error);
