@@ -103,8 +103,9 @@ export const ChangeProfileScreen: React.FC = () => {
 
   const handleProfileAccess = () => {
     // Navigation vers l'écran d'accueil du profil
-    // À compléter lorsque l'écran d'accueil du profil sera créé
-    console.log('Accéder au profil:', currentProfile?.id);
+    if (currentProfile) {
+      navigation.navigate('HomeProfile', { profileId: currentProfile.id });
+    }
   };
 
   const toggleProfileSelector = () => {

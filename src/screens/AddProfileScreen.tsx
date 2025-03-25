@@ -17,7 +17,7 @@ import { Button } from '../components/Button';
 import { Avatar } from '../components/Avatar';
 import { SelectionButton } from '../components/SelectionButton';
 import { COLORS, SPACING, FONTS } from '../utils/theme';
-import { AgeRange, PodcastType, PodcastTypeDescription } from '../types/podcast';
+import { AgeRange } from '../types/podcast';
 import { ProfileService } from '../services/ProfileService';
 import { RootStackParamList } from '../types/navigation';
 
@@ -31,11 +31,9 @@ export const AddProfileScreen: React.FC = () => {
   const [name, setName] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState(0);
   const [selectedAgeRanges, setSelectedAgeRanges] = useState<AgeRange[]>([]);
-  const [selectedPodcastTypes, setSelectedPodcastTypes] = useState<PodcastType[]>([]);
 
   // Convertir les enums en tableaux pour l'affichage
   const ageRanges = Object.values(AgeRange);
-  const podcastTypes = Object.values(PodcastType);
   
   // Fonction pour afficher le texte des tranches d'âge de façon plus lisible
   const formatAgeRange = (ageRange: string): string => {
@@ -67,16 +65,6 @@ export const AddProfileScreen: React.FC = () => {
     });
   };
 
-  const togglePodcastType = (podcastType: PodcastType) => {
-    setSelectedPodcastTypes(prev => {
-      if (prev.includes(podcastType)) {
-        return prev.filter(item => item !== podcastType);
-      } else {
-        return [...prev, podcastType];
-      }
-    });
-  };
-
   const handleBack = () => {
     navigation.goBack();
   };
@@ -101,21 +89,11 @@ export const AddProfileScreen: React.FC = () => {
         return;
       }
 
-      if (selectedPodcastTypes.length === 0) {
-        // Afficher une erreur si aucune thématique n'est sélectionnée
-        navigation.navigate('Notification', {
-          type: 'error' as const,
-          message: 'Veuillez sélectionner au moins une thématique'
-        });
-        return;
-      }
-
       // Créer le profil
       await ProfileService.createProfile({
         name: name.trim(),
         avatar: selectedAvatar,
-        ageRanges: selectedAgeRanges,
-        podcastTypes: selectedPodcastTypes
+        ageRanges: selectedAgeRanges
       });
 
       // Afficher une notification de succès et rediriger vers Settings
@@ -200,28 +178,6 @@ export const AddProfileScreen: React.FC = () => {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Typography variant="subtitle" style={styles.sectionTitle}>
-            Thématiques
-          </Typography>
-          <View style={styles.podcastTypesContainer}>
-            {podcastTypes.map(podcastType => {
-              // Convertir le type PodcastType en keyof typeof PodcastTypeDescription
-              const podcastTypeKey = podcastType as unknown as keyof typeof PodcastTypeDescription;
-              return (
-                <SelectionButton
-                  key={podcastType}
-                  label={podcastType}
-                  description={PodcastTypeDescription[podcastTypeKey]}
-                  selected={selectedPodcastTypes.includes(podcastType)}
-                  onPress={() => togglePodcastType(podcastType)}
-                  fullWidth
-                />
-              );
-            })}
-          </View>
-        </View>
-
         <Button
           title="Sauvegarder"
           onPress={handleSave}
@@ -291,9 +247,6 @@ const styles = StyleSheet.create({
   },
   ageRangeButton: {
     flex: 1,
-  },
-  podcastTypesContainer: {
-    flexDirection: 'column',
   },
   saveButton: {
     marginTop: SPACING.xl,

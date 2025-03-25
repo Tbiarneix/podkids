@@ -5,7 +5,6 @@ export interface Profile {
   name: string;
   avatar: number;
   ageRanges: AgeRange[];
-  podcastTypes: PodcastType[];
   createdAt: number;
   updatedAt: number;
 }
@@ -14,5 +13,4 @@ export interface ProfileFormData {
   name: string;
   avatar: number;
   ageRanges: AgeRange[];
-  podcastTypes: PodcastType[];
 }

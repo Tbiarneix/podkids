@@ -122,6 +122,7 @@ export class PodcastService {
         description: feed.description || '',
         cover: feed.image?.url || '',
         url: url,
+        author: feed.itunes?.owner?.name || (feed as any).creator || 'Auteur inconnu',
         types: podcastTypes,
         ageRanges: ageRanges,
         subscription: true,
@@ -163,6 +164,7 @@ export class PodcastService {
       name?: string; 
       description?: string; 
       cover?: string;
+      author?: string;
       types?: PodcastType[];
       ageRanges?: AgeRange[];
       subscription?: boolean;

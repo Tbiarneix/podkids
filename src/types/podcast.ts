@@ -67,6 +67,7 @@ export interface Podcast {
   description: string;
   cover: string;
   url: string;
+  author: string;
   types: PodcastType[];
   ageRanges: AgeRange[];
   subscription: boolean;

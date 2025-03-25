@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View, Image, Text } from 'react-native';
+import { StyleSheet, View, Image, Text, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { 
@@ -21,14 +21,24 @@ import { NotificationScreen } from './src/screens/NotificationScreen';
 import { AddPodcastScreen } from './src/screens/AddPodcastScreen';
 import { PodcastErrorScreen } from './src/screens/PodcastErrorScreen';
 import { PodcastSuccessScreen } from './src/screens/PodcastSuccessScreen';
+import { HomeProfileScreen } from './src/screens/HomeProfileScreen';
+import { ThemePodcastsScreen } from './src/screens/ThemePodcastsScreen';
+import { PodcastListScreen } from './src/screens/PodcastListScreen';
+import { EditPodcastScreen } from './src/screens/EditPodcastScreen';
+import { PodcastDetailsScreen } from './src/screens/PodcastDetailsScreen';
+import { EpisodeDetailsScreen } from './src/screens/EpisodeDetailsScreen';
+import { LibraryScreen } from './src/screens/LibraryScreen';
 import { COLORS } from './src/utils/theme';
 import { RootStackParamList } from './src/types/navigation';
 import { ProfileService } from './src/services/ProfileService';
 import { PinService } from './src/services/PinService';
+import { PlayerProvider } from './src/contexts/PlayerContext';
+import { PlayerBar } from './src/components/PlayerBar';
+import { usePlayer } from './src/contexts/PlayerContext';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export default function App() {
+function MainApp() {
   const [fontsLoaded] = useFonts({
     Rubik_400Regular,
     Rubik_500Medium,
@@ -38,6 +48,8 @@ export default function App() {
   const [initializing, setInitializing] = useState(true);
   const [initialRoute, setInitialRoute] = useState<keyof RootStackParamList>('Presentation');
   const [initialParams, setInitialParams] = useState<any>(undefined);
+  
+  const { currentEpisode, currentPodcast, isPlayerVisible, closePlayer } = usePlayer();
 
   // Déterminer l'écran initial en fonction de l'état de l'application
   useEffect(() => {
@@ -75,7 +87,7 @@ export default function App() {
   if (!fontsLoaded || initializing) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Chargement...</Text>
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
@@ -139,8 +151,56 @@ export default function App() {
           name="PodcastSuccess" 
           component={PodcastSuccessScreen} 
         />
+        <Stack.Screen 
+          name="HomeProfile" 
+          component={HomeProfileScreen} 
+        />
+        <Stack.Screen 
+          name="Home" 
+          component={HomeProfileScreen} 
+        />
+        <Stack.Screen 
+          name="ThemePodcasts" 
+          component={ThemePodcastsScreen} 
+        />
+        <Stack.Screen 
+          name="PodcastList" 
+          component={PodcastListScreen} 
+        />
+        <Stack.Screen 
+          name="EditPodcast" 
+          component={EditPodcastScreen} 
+        />
+        <Stack.Screen 
+          name="PodcastDetails" 
+          component={PodcastDetailsScreen} 
+        />
+        <Stack.Screen 
+          name="EpisodeDetails" 
+          component={EpisodeDetailsScreen} 
+        />
+        <Stack.Screen 
+          name="Library" 
+          component={LibraryScreen} 
+        />
       </Stack.Navigator>
+      
+      {isPlayerVisible && currentEpisode && currentPodcast && (
+        <PlayerBar 
+          episode={currentEpisode} 
+          podcast={currentPodcast} 
+          onClose={closePlayer} 
+        />
+      )}
     </NavigationContainer>
+  );
+}
+
+export default function App() {
+  return (
+    <PlayerProvider>
+      <MainApp />
+    </PlayerProvider>
   );
 }
 
@@ -150,9 +210,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: COLORS.background,
-  },
-  loadingText: {
-    color: COLORS.text,
-    fontSize: 18,
   },
 });

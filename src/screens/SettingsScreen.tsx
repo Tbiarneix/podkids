@@ -58,6 +58,20 @@ export const SettingsScreen: React.FC = () => {
           // Réinitialiser le paramètre
           navigation.setParams({ podcastAdded: undefined });
         }
+        else if ('podcastUpdated' in params && params.podcastUpdated) {
+          setSuccessMessage('Le podcast a bien été mis à jour !');
+          setShowSuccessToast(true);
+          
+          // Réinitialiser le paramètre
+          navigation.setParams({ podcastUpdated: undefined });
+        }
+        else if ('podcastDeleted' in params && params.podcastDeleted) {
+          setSuccessMessage('Le podcast a bien été supprimé !');
+          setShowSuccessToast(true);
+          
+          // Réinitialiser le paramètre
+          navigation.setParams({ podcastDeleted: undefined });
+        }
       }
     }, [])
   );
@@ -76,6 +90,10 @@ export const SettingsScreen: React.FC = () => {
 
   const handleAddPodcast = () => {
     navigation.navigate('AddPodcast');
+  };
+
+  const handleEditPodcast = () => {
+    navigation.navigate('PodcastList');
   };
 
   const handleEditProfile = (profile: Profile) => {
@@ -162,25 +180,19 @@ export const SettingsScreen: React.FC = () => {
         </View>
 
         <View style={styles.section}>
-          {renderSettingItem('Modifier les code pin', handleModifyPin)}
+          {renderSettingItem('Modifier le code pin', handleModifyPin)}
         </View>
 
         <View style={styles.section}>
           {renderSettingItem('Ajouter un podcast', handleAddPodcast)}
+          {renderSettingItem('Modifier un podcast', handleEditPodcast)}
         </View>
 
         <View style={styles.section}>
-          {renderSettingItem('Importer des paramètres', () => console.log('Importer des paramètres'))}
-        </View>
-
-        <View style={styles.section}>
-          {renderSettingItem('Exporter les paramètres', () => console.log('Exporter les paramètres'), true)}
+          {renderSettingItem('Importer/Exporter des paramètres', () => console.log('Importer/Exporter des paramètres'))}
         </View>
       </View>
 
-      <View style={styles.footer}>
-        <View style={styles.indicator} />
-      </View>
     </SafeAreaView>
   );
 };

@@ -48,7 +48,6 @@ export class ProfileService {
         name: profileData.name,
         avatar: profileData.avatar,
         ageRanges: profileData.ageRanges,
-        podcastTypes: profileData.podcastTypes,
         createdAt: now,
         updatedAt: now
       };
@@ -66,18 +65,20 @@ export class ProfileService {
   /**
    * Met à jour un profil existant
    */
-  static async updateProfile(id: string, profileData: Partial<ProfileFormData>): Promise<Profile> {
+  static async updateProfile(id: string, profileData: Partial<ProfileFormData>): Promise<Profile | null> {
     try {
       const profiles = await this.getProfiles();
       const profileIndex = profiles.findIndex(profile => profile.id === id);
       
       if (profileIndex === -1) {
-        throw new Error(`Profil avec l'ID ${id} non trouvé`);
+        return null;
       }
       
       const updatedProfile: Profile = {
         ...profiles[profileIndex],
-        ...profileData,
+        name: profileData.name ?? profiles[profileIndex].name,
+        avatar: profileData.avatar ?? profiles[profileIndex].avatar,
+        ageRanges: profileData.ageRanges ?? profiles[profileIndex].ageRanges,
         updatedAt: Date.now()
       };
       
