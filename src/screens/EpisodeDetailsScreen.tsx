@@ -34,16 +34,28 @@ export const EpisodeDetailsScreen: React.FC = () => {
   const navigation = useNavigation<EpisodeDetailsScreenNavigationProp>();
   const route = useRoute<EpisodeDetailsScreenRouteProp>();
   const { podcastId, episodeId } = route.params;
-  const { playEpisode } = usePlayer();
+  const { 
+    playEpisode, 
+    pauseEpisode, 
+    resumeEpisode, 
+    seekTo, 
+    isPlaying, 
+    currentTime, 
+    progress,
+    currentEpisode,
+    currentPodcast,
+    togglePlayPause
+  } = usePlayer();
 
   const [loading, setLoading] = useState(true);
   const [podcast, setPodcast] = useState<Podcast | null>(null);
   const [episode, setEpisode] = useState<Episode | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
   const [sliderValue, setSliderValue] = useState(0);
 
   const screenWidth = Dimensions.get('window').width;
+  
+  // Vérifier si l'épisode actuel est celui qui est en cours de lecture
+  const isCurrentEpisode = currentEpisode?.id === episodeId;
 
   useEffect(() => {
     const loadData = async () => {
@@ -57,8 +69,6 @@ export const EpisodeDetailsScreen: React.FC = () => {
           
           if (episodeData) {
             setEpisode(episodeData);
-            setCurrentTime(episodeData.timestamp || 0);
-            setSliderValue(episodeData.timestamp ? episodeData.timestamp / episodeData.duration : 0);
           }
         }
       } catch (error) {
@@ -71,23 +81,25 @@ export const EpisodeDetailsScreen: React.FC = () => {
     loadData();
   }, [podcastId, episodeId]);
 
+  // Mettre à jour le slider lorsque la progression change
+  useEffect(() => {
+    if (isCurrentEpisode && episode) {
+      setSliderValue(progress);
+    }
+  }, [isCurrentEpisode, progress, episode]);
+
   const handleBack = () => {
     navigation.goBack();
   };
 
-  const togglePlayPause = async () => {
+  const handleTogglePlayPause = () => {
     if (!episode || !podcast) return;
-
-    setIsPlaying(!isPlaying);
     
-    // Mettre à jour le statut de l'épisode
-    if (!isPlaying) {
-      // Si on commence à jouer
-      if (episode.status === EpisodeStatus.TO_LISTEN) {
-        await updateEpisodeStatus(EpisodeStatus.LISTENING);
-      }
-      
-      // Lancer la lecture dans le lecteur global
+    if (isCurrentEpisode) {
+      // Si c'est l'épisode en cours de lecture, on utilise le toggle du contexte
+      togglePlayPause();
+    } else {
+      // Sinon, on lance la lecture de cet épisode
       playEpisode(episode, podcast);
     }
   };
@@ -101,14 +113,14 @@ export const EpisodeDetailsScreen: React.FC = () => {
         podcast.id,
         episode.id,
         status,
-        currentTime
+        isCurrentEpisode ? currentTime : episode.timestamp || 0
       );
       
       // Mettre à jour l'état local
       const updatedEpisode = {
         ...episode,
         status,
-        timestamp: currentTime
+        timestamp: isCurrentEpisode ? currentTime : episode.timestamp || 0
       };
       
       const updatedEpisodes = podcast.episodes.map(ep => 
@@ -129,18 +141,25 @@ export const EpisodeDetailsScreen: React.FC = () => {
     if (!episode) return;
     
     setSliderValue(value);
-    const newTime = Math.floor(value * episode.duration);
-    setCurrentTime(newTime);
   };
 
   const handleSliderComplete = async (value: number) => {
     if (!episode) return;
     
     const newTime = Math.floor(value * episode.duration);
-    setCurrentTime(newTime);
     
-    // Mettre à jour le timestamp de l'épisode
-    await updateEpisodeStatus(episode.status);
+    if (isCurrentEpisode) {
+      // Si c'est l'épisode en cours de lecture, on utilise seekTo du contexte
+      seekTo(newTime);
+    } else {
+      // Sinon, on met juste à jour le statut
+      await PodcastService.updateEpisodeStatus(
+        podcast!.id,
+        episode.id,
+        episode.status,
+        newTime
+      );
+    }
   };
 
   const formatTime = (seconds: number): string => {
@@ -152,19 +171,51 @@ export const EpisodeDetailsScreen: React.FC = () => {
   const markAsListened = async () => {
     if (!episode) return;
     
-    setIsPlaying(false);
-    setCurrentTime(episode.duration);
+    if (isCurrentEpisode) {
+      pauseEpisode();
+    }
+    
+    await PodcastService.updateEpisodeStatus(
+      podcast!.id,
+      episode.id,
+      EpisodeStatus.LISTENED,
+      episode.duration
+    );
+    
+    // Mettre à jour l'état local
+    const updatedEpisode = {
+      ...episode,
+      status: EpisodeStatus.LISTENED,
+      timestamp: episode.duration
+    };
+    
+    setEpisode(updatedEpisode);
     setSliderValue(1);
-    await updateEpisodeStatus(EpisodeStatus.LISTENED);
   };
 
   const markAsUnlistened = async () => {
     if (!episode) return;
     
-    setIsPlaying(false);
-    setCurrentTime(0);
+    if (isCurrentEpisode) {
+      pauseEpisode();
+    }
+    
+    await PodcastService.updateEpisodeStatus(
+      podcast!.id,
+      episode.id,
+      EpisodeStatus.TO_LISTEN,
+      0
+    );
+    
+    // Mettre à jour l'état local
+    const updatedEpisode = {
+      ...episode,
+      status: EpisodeStatus.TO_LISTEN,
+      timestamp: 0
+    };
+    
+    setEpisode(updatedEpisode);
     setSliderValue(0);
-    await updateEpisodeStatus(EpisodeStatus.TO_LISTEN);
   };
 
   if (loading || !episode || !podcast) {
@@ -226,14 +277,14 @@ export const EpisodeDetailsScreen: React.FC = () => {
         <View style={styles.playerContainer}>
           <View style={styles.sliderContainer}>
             <Typography variant="caption" style={styles.timeText}>
-              {formatTime(currentTime)}
+              {isCurrentEpisode ? formatTime(currentTime) : formatTime(episode.timestamp || 0)}
             </Typography>
             
             <Slider
               style={styles.slider}
               minimumValue={0}
               maximumValue={1}
-              value={sliderValue}
+              value={isCurrentEpisode ? progress : (episode.timestamp || 0) / episode.duration}
               minimumTrackTintColor={COLORS.primary}
               maximumTrackTintColor={COLORS.textSecondary}
               thumbTintColor={COLORS.primary}
@@ -249,7 +300,11 @@ export const EpisodeDetailsScreen: React.FC = () => {
           <View style={styles.controlsContainer}>
             <TouchableOpacity 
               style={styles.controlButton}
-              onPress={() => setCurrentTime(Math.max(0, currentTime - 10))}
+              onPress={() => {
+                if (isCurrentEpisode) {
+                  seekTo(Math.max(0, currentTime - 10));
+                }
+              }}
             >
               <Ionicons name="play-back" size={24} color={COLORS.text} />
               <Typography variant="caption" style={styles.controlText}>10s</Typography>
@@ -257,10 +312,10 @@ export const EpisodeDetailsScreen: React.FC = () => {
             
             <TouchableOpacity 
               style={styles.playPauseButton}
-              onPress={togglePlayPause}
+              onPress={handleTogglePlayPause}
             >
               <Ionicons 
-                name={isPlaying ? "pause-circle" : "play-circle"} 
+                name={(isCurrentEpisode && isPlaying) ? "pause-circle" : "play-circle"} 
                 size={60} 
                 color={COLORS.primary} 
               />
@@ -268,7 +323,11 @@ export const EpisodeDetailsScreen: React.FC = () => {
             
             <TouchableOpacity 
               style={styles.controlButton}
-              onPress={() => setCurrentTime(Math.min(episode.duration, currentTime + 10))}
+              onPress={() => {
+                if (isCurrentEpisode) {
+                  seekTo(Math.min(episode.duration, currentTime + 10));
+                }
+              }}
             >
               <Ionicons name="play-forward" size={24} color={COLORS.text} />
               <Typography variant="caption" style={styles.controlText}>10s</Typography>

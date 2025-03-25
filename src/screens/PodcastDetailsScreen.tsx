@@ -134,15 +134,16 @@ export const PodcastDetailsScreen: React.FC = () => {
     }
   };
 
-  const renderEpisodeItem = ({ item }: { item: Episode }) => (
-    <EpisodeItem
-      episode={item}
-      podcast={podcast || undefined}
-      onPress={handleEpisodePress}
-      onPlayPress={handlePlayButtonPress}
-      showOnlyUnlistened={showOnlyUnlistened}
-    />
-  );
+  const renderEpisodeItem = ({ item }: { item: Episode }) => {
+    if (!podcast) return null;
+    
+    return (
+      <EpisodeItem
+        episode={item}
+        podcast={podcast}
+      />
+    );
+  };
 
   if (loading || !podcast) {
     return (

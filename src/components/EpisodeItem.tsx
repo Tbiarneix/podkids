@@ -1,99 +1,128 @@
 import React from 'react';
-import { StyleSheet, View, TouchableOpacity, Image } from 'react-native';
+import { 
+  View, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Image 
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from './Typography';
-import { COLORS, SPACING, SIZES } from '../utils/theme';
+import { COLORS, SPACING } from '../utils/theme';
 import { Episode, Podcast, EpisodeStatus } from '../types/podcast';
+import { RootStackParamList } from '../types/navigation';
+import { usePlayer } from '../contexts/PlayerContext';
 
-interface EpisodeItemProps {
+type EpisodeItemProps = {
   episode: Episode;
-  podcast?: Podcast;
-  onPress: (episode: Episode) => void;
-  onPlayPress: (episode: Episode) => void;
-  showOnlyUnlistened?: boolean;
-}
+  podcast: Podcast;
+};
 
-export const EpisodeItem: React.FC<EpisodeItemProps> = ({
-  episode,
-  podcast,
-  onPress,
-  onPlayPress,
-  showOnlyUnlistened = false
+export const EpisodeItem: React.FC<EpisodeItemProps> = ({ 
+  episode, 
+  podcast
 }) => {
-  // Si on filtre pour n'afficher que les épisodes non écoutés et que cet épisode est écouté, on le cache
-  if (showOnlyUnlistened && episode.status === EpisodeStatus.LISTENED) {
-    return null;
-  }
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { 
+    playEpisode, 
+    togglePlayPause, 
+    isPlaying, 
+    currentEpisode 
+  } = usePlayer();
 
-  const formatDuration = (duration: number): string => {
-    const minutes = Math.floor(duration / 60);
-    const seconds = duration % 60;
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-  };
+  // Vérifier si cet épisode est celui qui est en cours de lecture
+  const isCurrentEpisode = currentEpisode?.id === episode.id;
 
-  const getEpisodeTimeDisplay = (episode: Episode): string => {
-    if (episode.status === EpisodeStatus.TO_LISTEN) {
-      return formatDuration(episode.duration);
-    } else if (episode.status === EpisodeStatus.LISTENING) {
-      const remaining = episode.duration - episode.timestamp;
-      return `${formatDuration(remaining)} restantes`;
-    } else {
-      return formatDuration(episode.duration);
+  const formatDuration = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}min`;
     }
+    
+    return `${minutes} min`;
   };
 
-  const getEpisodeStatusText = (status: EpisodeStatus): string => {
+  const getStatusLabel = (status: EpisodeStatus): string => {
     switch (status) {
       case EpisodeStatus.TO_LISTEN:
-        return 'Pas encore écouté';
+        return 'À écouter';
       case EpisodeStatus.LISTENING:
         return 'En cours';
       case EpisodeStatus.LISTENED:
-        return 'Terminé';
+        return 'Écouté';
       default:
         return '';
     }
   };
 
+  const handlePress = () => {
+    navigation.navigate('EpisodeDetails', {
+      podcastId: podcast.id,
+      episodeId: episode.id
+    });
+  };
+
+  const handlePlayPress = () => {
+    if (isCurrentEpisode) {
+      // Si c'est l'épisode en cours, on bascule entre play et pause
+      togglePlayPause();
+    } else {
+      // Sinon on lance la lecture de cet épisode
+      playEpisode(episode, podcast);
+    }
+  };
+
   return (
     <TouchableOpacity 
-      style={styles.episodeItem}
-      onPress={() => onPress(episode)}
+      style={styles.container}
+      onPress={handlePress}
     >
       <Image 
-        source={{ uri: episode.cover || (podcast?.cover || 'https://via.placeholder.com/150') }}
-        style={styles.episodeCover}
+        source={{ uri: episode.cover || podcast.cover || 'https://via.placeholder.com/60' }}
+        style={styles.cover}
       />
-      <View style={styles.episodeInfo}>
-        <Typography variant="subtitle" numberOfLines={2} style={styles.episodeName}>
+      
+      <View style={styles.content}>
+        <Typography variant="body" style={styles.title} numberOfLines={1}>
           {episode.name}
         </Typography>
-        <Typography variant="caption" numberOfLines={1} style={styles.episodeDescription}>
-          {episode.description.length > 100 
-            ? `${episode.description.substring(0, 100)}...` 
-            : episode.description}
+        
+        <Typography variant="caption" style={styles.description} numberOfLines={2}>
+          {episode.description}
         </Typography>
-        <View style={styles.tagsContainer}>
-          <View style={styles.statusTag}>
-            <Typography variant="caption" style={styles.tagText}>
-              {getEpisodeStatusText(episode.status)}
-            </Typography>
-          </View>
-          
-          <View style={styles.durationTag}>
-            <Typography variant="caption" style={styles.tagText}>
-              {getEpisodeTimeDisplay(episode)}
-            </Typography>
+        
+        <View style={styles.footer}>
+          <View style={styles.tagsContainer}>
+            <View style={[
+              styles.tag, 
+              episode.status === EpisodeStatus.LISTENING ? styles.listeningTag : 
+              episode.status === EpisodeStatus.LISTENED ? styles.listenedTag : 
+              styles.toListenTag
+            ]}>
+              <Typography variant="caption" style={styles.tagText}>
+                {getStatusLabel(episode.status)}
+              </Typography>
+            </View>
+            
+            <View style={styles.durationTag}>
+              <Typography variant="caption" style={styles.tagText}>
+                {formatDuration(episode.duration)}
+              </Typography>
+            </View>
           </View>
         </View>
       </View>
+      
       <TouchableOpacity 
         style={styles.playButton}
-        onPress={() => onPlayPress(episode)}
+        onPress={handlePlayPress}
       >
         <Ionicons 
-          name={episode.status === EpisodeStatus.LISTENING ? "pause-circle" : "play-circle"} 
-          size={40} 
+          name={(isCurrentEpisode && isPlaying) ? "pause-circle" : "play-circle"} 
+          size={44} 
           color={COLORS.primary} 
         />
       </TouchableOpacity>
@@ -102,66 +131,65 @@ export const EpisodeItem: React.FC<EpisodeItemProps> = ({
 };
 
 const styles = StyleSheet.create({
-  episodeItem: {
+  container: {
     flexDirection: 'row',
+    padding: SPACING.md,
     backgroundColor: COLORS.cardBackground,
     borderRadius: 12,
     marginBottom: SPACING.md,
-    padding: SPACING.md,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    position: 'relative',
+    alignItems: 'center',
   },
-  episodeCover: {
-    width: 80,
-    height: 80,
+  cover: {
+    width: 60,
+    height: 60,
     borderRadius: 8,
+    marginRight: SPACING.md,
   },
-  episodeInfo: {
+  content: {
     flex: 1,
-    marginLeft: SPACING.md,
-    justifyContent: 'space-between',
   },
-  episodeName: {
+  title: {
     fontWeight: 'bold',
+    marginBottom: 4,
   },
-  episodeDescription: {
+  description: {
     color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
+    marginBottom: 8,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   tagsContainer: {
     flexDirection: 'row',
-    marginTop: SPACING.lg,
   },
-  playButton: {
-    position: 'absolute',
-    bottom: SPACING.md,
-    right: SPACING.md,
-    justifyContent: 'center',
-    alignItems: 'center',
+  tag: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginRight: 6,
   },
-  statusTag: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: COLORS.tertiary,
-    borderRadius: 20,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    marginRight: SPACING.sm,
+  toListenTag: {
+    backgroundColor: COLORS.tertiary + '40',
+  },
+  listeningTag: {
+    backgroundColor: COLORS.primary + '40',
+  },
+  listenedTag: {
+    backgroundColor: COLORS.success + '40',
   },
   durationTag: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: COLORS.tertiary,
-    borderRadius: 20,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    backgroundColor: COLORS.textTertiary,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   tagText: {
+    fontSize: 10,
     color: COLORS.text,
-    fontSize: 12,
+  },
+  playButton: {
+    marginLeft: SPACING.sm,
   },
 });

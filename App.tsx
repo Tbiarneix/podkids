@@ -84,6 +84,9 @@ function MainApp() {
     checkAppState();
   }, []);
 
+  // Définir la hauteur du PlayerBar pour la marge
+  const playerBarHeight = 70; // Hauteur du PlayerBar en pixels
+
   if (!fontsLoaded || initializing) {
     return (
       <View style={styles.loadingContainer}>
@@ -99,7 +102,11 @@ function MainApp() {
         initialRouteName={initialRoute}
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: COLORS.background },
+          contentStyle: {
+            backgroundColor: COLORS.background,
+            // Ajouter une marge en bas lorsque le PlayerBar est visible
+            paddingBottom: isPlayerVisible ? playerBarHeight : 0,
+          },
         }}
       >
         <Stack.Screen 

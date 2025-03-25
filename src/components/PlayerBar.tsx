@@ -1,20 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   View, 
   StyleSheet, 
   TouchableOpacity, 
   Image,
   Dimensions,
-  Animated
+  Animated,
+  PanResponder
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from './Typography';
 import { COLORS, SPACING } from '../utils/theme';
-import { Episode, Podcast, EpisodeStatus } from '../types/podcast';
+import { Episode, Podcast } from '../types/podcast';
 import { RootStackParamList } from '../types/navigation';
-import { PodcastService } from '../services/PodcastService';
+import { usePlayer } from '../contexts/PlayerContext';
 
 type PlayerBarProps = {
   episode: Episode;
@@ -28,78 +29,29 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
   onClose 
 }) => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [progress, setProgress] = useState(0);
-  const [currentTime, setCurrentTime] = useState(episode.timestamp || 0);
-  const [animatedHeight] = useState(new Animated.Value(0));
+  const { isPlaying, progress, currentTime, pauseEpisode, resumeEpisode, seekTo } = usePlayer();
+  const [animatedHeight] = React.useState(new Animated.Value(0));
+  const [remainingTimeText, setRemainingTimeText] = React.useState('');
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [seekPosition, setSeekPosition] = useState(0);
 
-  const screenWidth = Dimensions.get('window').width;
-
+  // Animer l'apparition du lecteur
   useEffect(() => {
-    // Animer l'apparition du lecteur
     Animated.timing(animatedHeight, {
       toValue: 1,
       duration: 300,
       useNativeDriver: false
     }).start();
+  }, []);
 
-    // Simuler la progression de la lecture
-    const interval = setInterval(() => {
-      if (isPlaying) {
-        setCurrentTime(prevTime => {
-          const newTime = prevTime + 1;
-          if (newTime >= episode.duration) {
-            clearInterval(interval);
-            handleEpisodeComplete();
-            return episode.duration;
-          }
-          
-          // Mettre à jour la progression
-          setProgress(newTime / episode.duration);
-          
-          // Mettre à jour le timestamp dans le stockage toutes les 5 secondes
-          if (newTime % 5 === 0) {
-            updateEpisodeTimestamp(newTime);
-          }
-          
-          return newTime;
-        });
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isPlaying, episode]);
-
-  const updateEpisodeTimestamp = async (timestamp: number) => {
-    try {
-      await PodcastService.updateEpisodeStatus(
-        podcast.id,
-        episode.id,
-        EpisodeStatus.LISTENING,
-        timestamp
-      );
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour du timestamp:', error);
+  // Mettre à jour la progression et le temps restant en temps réel
+  useEffect(() => {
+    if (!isSeeking) {
+      const remaining = episode.duration - currentTime;
+      setRemainingTimeText(`${formatTime(remaining)} restantes`);
+      setSeekPosition(currentTime / episode.duration);
     }
-  };
-
-  const handleEpisodeComplete = async () => {
-    try {
-      await PodcastService.updateEpisodeStatus(
-        podcast.id,
-        episode.id,
-        EpisodeStatus.LISTENED,
-        episode.duration
-      );
-      setIsPlaying(false);
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour du statut:', error);
-    }
-  };
-
-  const togglePlayPause = () => {
-    setIsPlaying(!isPlaying);
-  };
+  }, [progress, currentTime, episode.duration, isSeeking]);
 
   const handleOpenEpisodeDetails = () => {
     navigation.navigate('EpisodeDetails', {
@@ -108,16 +60,44 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
     });
   };
 
+  const togglePlayPause = () => {
+    if (isPlaying) {
+      pauseEpisode();
+    } else {
+      resumeEpisode();
+    }
+  };
+
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
     return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
   };
 
-  const getRemainingTime = (): string => {
-    const remaining = episode.duration - currentTime;
-    return formatTime(remaining);
-  };
+  // Gestion du glissement sur la barre de progression
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: () => {
+      setIsSeeking(true);
+    },
+    onPanResponderMove: (_, gestureState) => {
+      const { moveX } = gestureState;
+      const progressBarWidth = Dimensions.get('window').width;
+      let position = moveX / progressBarWidth;
+      
+      // Limiter la position entre 0 et 1
+      position = Math.max(0, Math.min(1, position));
+      
+      setSeekPosition(position);
+      setRemainingTimeText(`${formatTime(episode.duration * (1 - position))} restantes`);
+    },
+    onPanResponderRelease: () => {
+      const newPosition = seekPosition * episode.duration;
+      seekTo(newPosition);
+      setIsSeeking(false);
+    },
+  });
 
   return (
     <Animated.View 
@@ -129,11 +109,20 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
         })}
       ]}
     >
-      <View style={styles.progressBar}>
+      <View 
+        style={styles.progressBar}
+        {...panResponder.panHandlers}
+      >
         <View 
           style={[
             styles.progressFill, 
-            { width: `${progress * 100}%` }
+            { width: `${(isSeeking ? seekPosition : progress) * 100}%` }
+          ]} 
+        />
+        <View 
+          style={[
+            styles.progressHandle, 
+            { left: `${(isSeeking ? seekPosition : progress) * 100}%` }
           ]} 
         />
       </View>
@@ -152,7 +141,7 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
               {episode.name}
             </Typography>
             <Typography variant="caption" numberOfLines={1} style={styles.remainingTime}>
-              {getRemainingTime()} restantes
+              {remainingTimeText}
             </Typography>
           </View>
         </TouchableOpacity>
@@ -187,13 +176,27 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressBar: {
-    height: 3,
+    height: 6,
     backgroundColor: COLORS.textSecondary,
     width: '100%',
   },
   progressFill: {
     height: '100%',
     backgroundColor: COLORS.primary,
+    position: 'absolute',
+    left: 0,
+    top: 0,
+  },
+  progressHandle: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: COLORS.primary,
+    position: 'absolute',
+    top: -3,
+    marginLeft: -6,
+    borderWidth: 2,
+    borderColor: COLORS.textTertiary,
   },
   content: {
     flex: 1,
@@ -204,25 +207,25 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
   },
   episodeInfo: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
   },
   cover: {
     width: 40,
     height: 40,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   textContainer: {
     marginLeft: SPACING.sm,
     flex: 1,
   },
   episodeName: {
-    color: COLORS.text,
     fontWeight: 'bold',
+    color: COLORS.text,
   },
   remainingTime: {
-    color: COLORS.tertiary,
+    color: COLORS.textSecondary,
     fontSize: 12,
   },
   controls: {
@@ -230,7 +233,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   playButton: {
-    marginRight: SPACING.md,
+    marginRight: SPACING.sm,
   },
   closeButton: {
     padding: 4,
