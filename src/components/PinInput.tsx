@@ -1,187 +1,122 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { View, StyleSheet, TextInput, Keyboard, Platform } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { 
+  View, 
+  StyleSheet, 
+  TextInput, 
+  TouchableOpacity,
+  Keyboard
+} from 'react-native';
 import { COLORS, SPACING } from '../utils/theme';
 
 interface PinInputProps {
-  length: number;
-  value: string;
-  onChange: (value: string) => void;
+  length?: number;
+  onComplete?: (pin: string) => void;
 }
 
-export interface PinInputRef {
-  focus: () => void;
-  blur: () => void;
-}
-
-export const PinInput = forwardRef<PinInputRef, PinInputProps>(({ 
+export const PinInput: React.FC<PinInputProps> = ({ 
   length = 5, 
-  value, 
-  onChange 
-}, ref) => {
-  const [isFocused, setIsFocused] = useState(false);
-  
-  // Créer un tableau de la longueur spécifiée
-  const codeArray = value.split('');
-  const filledBoxes = codeArray.length;
-  
-  // Référence à l'input caché
-  const inputRef = React.useRef<TextInput>(null);
+  onComplete 
+}) => {
+  const [pin, setPin] = useState<string[]>(Array(length).fill(''));
+  const inputRefs = useRef<Array<TextInput | null>>([]);
 
-  // Exposer les méthodes focus et blur via la référence
-  useImperativeHandle(ref, () => ({
-    focus: () => {
-      if (inputRef.current) {
-        inputRef.current.focus();
-        
-        // Sur Android, on peut avoir besoin de forcer l'affichage du clavier
-        if (Platform.OS === 'android') {
-          setTimeout(() => {
-            inputRef.current?.focus();
-          }, 100);
-        }
-      }
-    },
-    blur: () => {
-      if (inputRef.current) {
-        inputRef.current.blur();
-      }
-    }
-  }));
-
-  // Focus sur l'input quand le composant est monté
+  // Initialiser les refs
   useEffect(() => {
-    // Petit délai pour s'assurer que le composant est bien monté
-    const timer = setTimeout(() => {
-      if (inputRef.current) {
-        inputRef.current.focus();
-        
-        // Sur Android, on peut avoir besoin de forcer l'affichage du clavier
-        if (Platform.OS === 'android') {
-          inputRef.current.blur();
-          inputRef.current.focus();
-        }
-      }
-    }, 100);
-    
-    return () => clearTimeout(timer);
-  }, []);
+    inputRefs.current = inputRefs.current.slice(0, length);
+  }, [length]);
 
-  const handlePress = () => {
-    if (inputRef.current) {
-      inputRef.current.focus();
-      
-      // Sur Android, on peut avoir besoin de forcer l'affichage du clavier
-      if (Platform.OS === 'android') {
-        Keyboard.dismiss();
-        setTimeout(() => {
-          inputRef.current?.focus();
-        }, 100);
-      }
+  // Gérer la saisie d'un chiffre
+  const handleChange = (text: string, index: number) => {
+    if (text.length > 1) {
+      text = text.charAt(text.length - 1);
+    }
+
+    // Vérifier que c'est un chiffre
+    if (text && !/^\d+$/.test(text)) {
+      return;
+    }
+
+    const newPin = [...pin];
+    newPin[index] = text;
+    setPin(newPin);
+
+    // Focus sur l'input suivant
+    if (text && index < length - 1) {
+      inputRefs.current[index + 1]?.focus();
+    }
+
+    // Vérifier si le code PIN est complet
+    if (text && index === length - 1) {
+      const completePin = [...newPin].join('');
+      Keyboard.dismiss();
+      onComplete && onComplete(completePin);
     }
   };
 
-  const handleFocus = () => {
-    setIsFocused(true);
+  // Gérer la suppression
+  const handleKeyPress = (e: any, index: number) => {
+    if (e.nativeEvent.key === 'Backspace' && !pin[index] && index > 0) {
+      const newPin = [...pin];
+      newPin[index - 1] = '';
+      setPin(newPin);
+      inputRefs.current[index - 1]?.focus();
+    }
   };
 
-  const handleBlur = () => {
-    setIsFocused(false);
-  };
-
-  const handleChangeText = (text: string) => {
-    // Filtrer pour ne garder que les chiffres
-    const numericText = text.replace(/[^0-9]/g, '');
-    
-    // Limiter à la longueur maximale
-    const truncatedText = numericText.slice(0, length);
-    
-    // Mettre à jour la valeur
-    onChange(truncatedText);
+  // Réinitialiser le PIN
+  const resetPin = () => {
+    setPin(Array(length).fill(''));
+    inputRefs.current[0]?.focus();
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.boxesContainer}>
-        {[...Array(length)].map((_, index) => (
-          <View 
-            key={index} 
-            style={[
-              styles.box, 
-              index < filledBoxes && styles.filledBox,
-              isFocused && index === filledBoxes && styles.focusedBox
-            ]}
-          >
-            {index < filledBoxes && (
-              <View style={styles.dot} />
-            )}
-          </View>
-        ))}
-      </View>
-      
-      <TextInput
-        ref={inputRef}
-        style={styles.hiddenInput}
-        value={value}
-        onChangeText={handleChangeText}
-        keyboardType="numeric"
-        maxLength={length}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        caretHidden
-        autoFocus
-      />
-      
-      {/* Zone tactile pour faciliter la mise au point de l'input caché */}
-      <View style={styles.touchArea} onTouchStart={handlePress} />
+      {Array(length).fill(0).map((_, index) => (
+        <TouchableOpacity 
+          key={index}
+          style={styles.inputContainer}
+          onPress={() => inputRefs.current[index]?.focus()}
+        >
+          <TextInput
+            ref={ref => inputRefs.current[index] = ref}
+            style={styles.input}
+            keyboardType="numeric"
+            maxLength={1}
+            value={pin[index]}
+            onChangeText={(text) => handleChange(text, index)}
+            onKeyPress={(e) => handleKeyPress(e, index)}
+            secureTextEntry={true}
+            selectTextOnFocus={true}
+          />
+        </TouchableOpacity>
+      ))}
     </View>
   );
-});
+};
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  boxesContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginVertical: SPACING.xl,
-  },
-  box: {
-    width: 50,
-    height: 50,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginHorizontal: SPACING.xs,
     alignItems: 'center',
+    marginVertical: SPACING.lg,
+  },
+  inputContainer: {
+    width: 40,
+    height: 50,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    marginHorizontal: SPACING.xs,
     justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.cardBackground,
   },
-  filledBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  focusedBox: {
-    borderColor: COLORS.primary,
-    borderWidth: 2,
-  },
-  dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: COLORS.text,
-  },
-  hiddenInput: {
-    position: 'absolute',
-    opacity: 0,
-    height: 50,  // Augmenter la hauteur pour faciliter le focus
+  input: {
     width: '100%',
-    bottom: 0,
-  },
-  touchArea: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    height: '100%',
+    textAlign: 'center',
+    fontSize: 20,
+    color: COLORS.text,
   },
 });

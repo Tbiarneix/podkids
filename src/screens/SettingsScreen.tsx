@@ -3,6 +3,7 @@ import { View, StyleSheet, SafeAreaView, TouchableOpacity, FlatList } from 'reac
 import { Typography } from '../components/Typography';
 import { Toast } from '../components/Toast';
 import { ProfileItem } from '../components/ProfileItem';
+import { Button } from '../components/Button';
 import { COLORS, SPACING } from '../utils/theme';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -42,12 +43,21 @@ export const SettingsScreen: React.FC = () => {
 
       // Vérifier si on revient d'une création de profil réussie
       const params = navigation.getState().routes.find(r => r.name === 'Settings')?.params;
-      if (params && 'profileCreated' in params && params.profileCreated) {
-        setSuccessMessage('Le profil a bien été créé !');
-        setShowSuccessToast(true);
-        
-        // Réinitialiser le paramètre
-        navigation.setParams({ profileCreated: undefined });
+      if (params) {
+        if ('profileCreated' in params && params.profileCreated) {
+          setSuccessMessage('Le profil a bien été créé !');
+          setShowSuccessToast(true);
+          
+          // Réinitialiser le paramètre
+          navigation.setParams({ profileCreated: undefined });
+        } 
+        else if ('podcastAdded' in params && params.podcastAdded) {
+          setSuccessMessage('Le podcast a bien été ajouté !');
+          setShowSuccessToast(true);
+          
+          // Réinitialiser le paramètre
+          navigation.setParams({ podcastAdded: undefined });
+        }
       }
     }, [])
   );
@@ -64,10 +74,20 @@ export const SettingsScreen: React.FC = () => {
     navigation.navigate('AddProfile');
   };
 
+  const handleAddPodcast = () => {
+    navigation.navigate('AddPodcast');
+  };
+
   const handleEditProfile = (profile: Profile) => {
-    // Pour l'instant, nous allons simplement afficher un toast
-    setSuccessMessage('Fonctionnalité à venir : Modifier le profil');
-    setShowSuccessToast(true);
+    // Naviguer vers l'écran de modification de profil
+    navigation.navigate('EditProfile', { profileId: profile.id });
+  };
+
+  const handleAccessApp = () => {
+    // Naviguer vers l'écran de changement de profil
+    if (profiles.length > 0) {
+      navigation.navigate('ChangeProfile', { initialProfileId: profiles[0].id });
+    }
   };
 
   const renderSettingItem = (
@@ -109,6 +129,15 @@ export const SettingsScreen: React.FC = () => {
       </View>
 
       <View style={styles.content}>
+        {profiles.length > 0 && (
+          <Button
+            title="Accéder à l'application"
+            onPress={handleAccessApp}
+            fullWidth
+            style={styles.accessAppButton}
+          />
+        )}
+        
         <View style={styles.section}>
           <Typography variant="subtitle" style={styles.sectionTitle}>
             Gérer les profils
@@ -137,7 +166,7 @@ export const SettingsScreen: React.FC = () => {
         </View>
 
         <View style={styles.section}>
-          {renderSettingItem('Ajouter un podcast', () => console.log('Ajouter un podcast'))}
+          {renderSettingItem('Ajouter un podcast', handleAddPodcast)}
         </View>
 
         <View style={styles.section}>
@@ -212,6 +241,9 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   emptyProfilesText: {
-    color: COLORS.textSecondary,
+    opacity: 0.7,
+  },
+  accessAppButton: {
+    marginBottom: SPACING.xl,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -7,9 +7,9 @@ import {
   ScrollView, 
   TouchableOpacity,
   Text,
-  FlatList
+  ActivityIndicator
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '../components/Typography';
@@ -20,14 +20,24 @@ import { COLORS, SPACING, FONTS } from '../utils/theme';
 import { AgeRange, PodcastType, PodcastTypeDescription } from '../types/podcast';
 import { ProfileService } from '../services/ProfileService';
 import { RootStackParamList } from '../types/navigation';
+import { Profile } from '../types/profile';
 
-type AddProfileScreenNavigationProp = NativeStackNavigationProp<
+type EditProfileScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  'AddProfile'
+  'EditProfile'
 >;
 
-export const AddProfileScreen: React.FC = () => {
-  const navigation = useNavigation<AddProfileScreenNavigationProp>();
+type EditProfileScreenRouteProp = RouteProp<
+  RootStackParamList,
+  'EditProfile'
+>;
+
+export const EditProfileScreen: React.FC = () => {
+  const navigation = useNavigation<EditProfileScreenNavigationProp>();
+  const route = useRoute<EditProfileScreenRouteProp>();
+  const { profileId } = route.params;
+
+  const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState(0);
   const [selectedAgeRanges, setSelectedAgeRanges] = useState<AgeRange[]>([]);
@@ -37,6 +47,39 @@ export const AddProfileScreen: React.FC = () => {
   const ageRanges = Object.values(AgeRange);
   const podcastTypes = Object.values(PodcastType);
   
+  // Charger les données du profil
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const profile = await ProfileService.getProfileById(profileId);
+        if (profile) {
+          setName(profile.name);
+          setSelectedAvatar(profile.avatar);
+          setSelectedAgeRanges(profile.ageRanges);
+          setSelectedPodcastTypes(profile.podcastTypes);
+        } else {
+          // Profil non trouvé, afficher une erreur
+          navigation.navigate('Notification', {
+            type: 'error' as const,
+            message: 'Profil non trouvé',
+            redirectTo: 'Settings'
+          });
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement du profil:', error);
+        navigation.navigate('Notification', {
+          type: 'error' as const,
+          message: 'Erreur lors du chargement du profil',
+          redirectTo: 'Settings'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [profileId, navigation]);
+
   // Fonction pour afficher le texte des tranches d'âge de façon plus lisible
   const formatAgeRange = (ageRange: string): string => {
     switch (ageRange) {
@@ -110,8 +153,8 @@ export const AddProfileScreen: React.FC = () => {
         return;
       }
 
-      // Créer le profil
-      await ProfileService.createProfile({
+      // Mettre à jour le profil
+      await ProfileService.updateProfile(profileId, {
         name: name.trim(),
         avatar: selectedAvatar,
         ageRanges: selectedAgeRanges,
@@ -121,19 +164,32 @@ export const AddProfileScreen: React.FC = () => {
       // Afficher une notification de succès et rediriger vers Settings
       navigation.navigate('Notification', {
         type: 'success' as const,
-        message: 'Le profil a bien été créé !',
+        message: 'Le profil a bien été modifié !',
         redirectTo: 'Settings'
       });
     } catch (error) {
-      console.error('Erreur lors de la création du profil:', error);
+      console.error('Erreur lors de la modification du profil:', error);
       
       // Afficher une notification d'erreur
       navigation.navigate('Notification', {
         type: 'error' as const,
-        message: 'Erreur lors de la création du profil'
+        message: 'Erreur lors de la modification du profil'
       });
     }
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Typography variant="body" style={styles.loadingText}>
+            Chargement du profil...
+          </Typography>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -142,7 +198,7 @@ export const AddProfileScreen: React.FC = () => {
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Typography variant="title" center style={styles.headerTitle}>
-          Ajouter un profil
+          Modifier un profil
         </Typography>
         <View style={styles.placeholder} />
       </View>
@@ -290,7 +346,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   ageRangeButton: {
-    flex: 1,
+    width: '30%',  // Environ un tiers de la largeur pour avoir 3 boutons par ligne
+    marginBottom: SPACING.md,
   },
   podcastTypesContainer: {
     flexDirection: 'column',
@@ -298,5 +355,13 @@ const styles = StyleSheet.create({
   saveButton: {
     marginTop: SPACING.xl,
     marginBottom: SPACING.xxxl,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: SPACING.md,
   },
 });

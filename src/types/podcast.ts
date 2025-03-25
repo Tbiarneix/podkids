@@ -52,16 +52,23 @@ export enum AgeRange {
 export interface Episode {
   id: string;
   name: string;
+  description: string;
+  cover: string;
+  url: string;
+  duration: number;
   status: EpisodeStatus;
   timestamp: number;
+  publicationDate: number;
 }
 
 export interface Podcast {
   id: string;
   name: string;
+  description: string;
+  cover: string;
   url: string;
-  type: PodcastType;
-  age: AgeRange;
+  types: PodcastType[];
+  ageRanges: AgeRange[];
   subscription: boolean;
   episodes: Episode[];
 }

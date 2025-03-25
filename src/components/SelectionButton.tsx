@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, View, StyleProp, ViewStyle } from 'react-native';
 import { COLORS, FONTS, SPACING } from '../utils/theme';
 
 interface SelectionButtonProps {
@@ -8,6 +8,7 @@ interface SelectionButtonProps {
   selected: boolean;
   onPress: () => void;
   size?: 'small' | 'medium' | 'large';
+  customStyle?: StyleProp<ViewStyle>;
   fullWidth?: boolean;
 }
 
@@ -17,6 +18,7 @@ export const SelectionButton: React.FC<SelectionButtonProps> = ({
   selected, 
   onPress,
   size = 'small',
+  customStyle,
   fullWidth = false
 }) => {
   return (
@@ -24,6 +26,7 @@ export const SelectionButton: React.FC<SelectionButtonProps> = ({
       style={[
         styles.button,
         styles[size],
+        customStyle,
         fullWidth && styles.fullWidth,
         { backgroundColor: selected ? COLORS.primary : COLORS.background }
       ]}
