@@ -45,6 +45,18 @@ export const EpisodeItem: React.FC<EpisodeItemProps> = ({
     return `${minutes} min`;
   };
 
+  const formatRemainingTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (hours > 0) {
+      return `${hours} h ${minutes} min ${secs} sec restantes`;
+    }
+    
+    return `${minutes} min ${secs} sec restantes`;
+  };
+
   const getStatusLabel = (status: EpisodeStatus): string => {
     switch (status) {
       case EpisodeStatus.TO_LISTEN:
@@ -107,11 +119,15 @@ export const EpisodeItem: React.FC<EpisodeItemProps> = ({
               </Typography>
             </View>
             
-            <View style={styles.durationTag}>
-              <Typography variant="caption" style={styles.tagText}>
-                {formatDuration(episode.duration)}
-              </Typography>
-            </View>
+            {episode.status !== EpisodeStatus.LISTENED && (
+              <View style={styles.durationTag}>
+                <Typography variant="caption" style={styles.tagText}>
+                  {episode.status === EpisodeStatus.LISTENING && episode.timestamp !== undefined
+                    ? formatRemainingTime(episode.duration - episode.timestamp)
+                    : formatDuration(episode.duration)}
+                </Typography>
+              </View>
+            )}
           </View>
         </View>
       </View>

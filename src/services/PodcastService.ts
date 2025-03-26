@@ -131,7 +131,7 @@ export class PodcastService {
         author: feed.itunesOwnerName || feed.itunesAuthor || 'Auteur inconnu',
         types: podcastTypes,
         ageRanges: ageRanges,
-        subscription: true,
+        subscription: false,
         episodes: feed.items.map((item: RssFeedItem) => ({
           id: generateUniqueId(),
           name: item.title || 'Épisode sans titre',
