@@ -13,19 +13,17 @@ export const getAvatarImage = (index: number) => {
     case 1:
       return require('../../assets/avatar/avatar-1.webp');
     case 2:
-      return require('../../assets/avatar/avatar-2.webp');
-    case 3:
       return require('../../assets/avatar/avatar-3.webp');
-    case 4:
+    case 3:
       return require('../../assets/avatar/avatar-4.webp');
-    case 5:
+    case 4:
       return require('../../assets/avatar/avatar-5.webp');
-    case 6:
+    case 5:
       return require('../../assets/avatar/avatar-6.webp');
-    case 7:
+    case 6:
       return require('../../assets/avatar/avatar-7.webp');
     default:
-      return require('../../assets/avatar.png'); // Avatar par défaut
+      return require('../../assets/avatar/avatar-2.webp'); // Avatar par défaut
   }
 };
 
@@ -42,5 +40,5 @@ export const getTotalAvatars = (): number => {
  * @returns Tableau d'indices d'avatars
  */
 export const getAvatarIndices = (): number[] => {
-  return [0, 1, 2, 3, 4, 5, 6, 7]; // 0 est l'avatar par défaut, 1-7 sont les nouveaux avatars
+  return [0, 1, 2, 3, 4, 5, 6]; // 0 est l'avatar par défaut, 1-7 sont les nouveaux avatars
 };

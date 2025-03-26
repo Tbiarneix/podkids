@@ -1,22 +1,22 @@
-import React from 'react';
-import { View, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
-import { Typography } from '../components/Typography';
-import { Button } from '../components/Button';
-import { COLORS, SPACING } from '../utils/theme';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types/navigation';
+import React from "react";
+import { View, StyleSheet, SafeAreaView, ScrollView } from "react-native";
+import { Typography } from "../components/Typography";
+import { Button } from "../components/Button";
+import { COLORS, SPACING } from "../utils/theme";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../types/navigation";
 
 type PresentationScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  'Presentation'
+  "Presentation"
 >;
 
 export const PresentationScreen: React.FC = () => {
   const navigation = useNavigation<PresentationScreenNavigationProp>();
 
   const handleUnderstand = () => {
-    navigation.navigate('PinCode');
+    navigation.navigate("PinCode");
   };
 
   return (
@@ -26,31 +26,32 @@ export const PresentationScreen: React.FC = () => {
           <Typography variant="title" center>
             Présentation
           </Typography>
-          
+
           <Typography variant="body" style={styles.paragraph}>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
-            ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco
-            laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate
-            velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident,
-            sunt in culpa qui officia deserunt mollit anim id est laborum.
+            Podkids est une application de gestion de podcasts pour les enfants.
+            Vous pouvez actuellement gérer un profil, ajouter des podcasts à
+            votre bibliothèque et les écouter. Cette application est pensée pour
+            éviter aux enfants d'être exposés à des contenus inapropriés.
           </Typography>
-          
+
           <Typography variant="body" style={styles.paragraph}>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
-            ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco
-            laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate
-            velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident,
-            sunt in culpa qui officia deserunt mollit anim id est laborum.
+            N'hésitez pas à nous faire vos retours ! Ils seront primordiaux pour
+            les améliorations à venir.
+          </Typography>
+
+          <Typography variant="body" style={styles.paragraph}>
+            PodKids est un projet indépendant développé par une équipe réduite.
+            L'application est actuellement en version Beta et accessible
+            gratuitement. Nous ne pouvons pas garantir qu'elle restera gratuite
+            lors de sa mise en production finale. Nous ne pouvons pas non plus
+            garantir la pérénité de vos données dans l'application.
+            Nous ne collectons AUCUNES de vos données.
           </Typography>
         </View>
       </ScrollView>
-      
+
       <View style={styles.footer}>
-        <Button 
-          title="J'ai compris" 
-          onPress={handleUnderstand}
-          fullWidth
-        />
+        <Button title="J'ai compris" onPress={handleUnderstand} fullWidth />
       </View>
     </SafeAreaView>
   );
