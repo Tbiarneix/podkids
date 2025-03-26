@@ -15,7 +15,7 @@ export const ProfileItem: React.FC<ProfileItemProps> = ({ profile, onPress }) =>
   return (
     <TouchableOpacity style={styles.container} onPress={onPress}>
       <View style={styles.avatarContainer}>
-        <Avatar size={50} disabled />
+        <Avatar size={50} disabled avatarIndex={profile.avatar} />
       </View>
       <Typography variant="body" style={styles.name}>{profile.name}</Typography>
       <Ionicons name="chevron-forward" size={24} color={COLORS.text} />

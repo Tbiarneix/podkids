@@ -1,19 +1,22 @@
 import React from 'react';
 import { View, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { COLORS, SPACING } from '../utils/theme';
+import { getAvatarImage } from '../utils/avatarUtils';
 
 interface AvatarProps {
   selected?: boolean;
   onPress?: () => void;
   size?: number;
   disabled?: boolean;
+  avatarIndex?: number;
 }
 
 export const Avatar: React.FC<AvatarProps> = ({ 
   selected = false, 
   onPress, 
   size = 60,
-  disabled = false
+  disabled = false,
+  avatarIndex = 0
 }) => {
   return (
     <TouchableOpacity 
@@ -29,7 +32,7 @@ export const Avatar: React.FC<AvatarProps> = ({
       ]}
     >
       <Image 
-        source={require('../../assets/avatar.png')} 
+        source={getAvatarImage(avatarIndex)} 
         style={{ width: size - 8, height: size - 8 }}
         resizeMode="contain"
       />

@@ -12,10 +12,13 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '../components/Typography';
+import { Avatar } from '../components/Avatar';
 import { COLORS, SPACING } from '../utils/theme';
 import { RootStackParamList } from '../types/navigation';
 import { PodcastService } from '../services/PodcastService';
+import { ProfileService } from '../services/ProfileService';
 import { Episode, EpisodeStatus, PodcastType, PodcastTypeDescription } from '../types/podcast';
+import { Profile } from '../types/profile';
 
 type HomeProfileScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -39,6 +42,7 @@ export const HomeProfileScreen: React.FC = () => {
 
   const [listeningEpisodes, setListeningEpisodes] = useState<ContinueListeningEpisode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
   
   // Créer un tableau des types de podcasts pour la section "Découvrir"
   const podcastTypeEntries = Object.entries(PodcastType).map(([key, value]) => ({
@@ -51,6 +55,12 @@ export const HomeProfileScreen: React.FC = () => {
     const loadListeningEpisodes = async () => {
       try {
         setLoading(true);
+        
+        // Récupérer les détails du profil si un profileId est fourni
+        if (profileId) {
+          const profileDetails = await ProfileService.getProfileById(profileId);
+          setActiveProfile(profileDetails);
+        }
         
         // Récupérer tous les podcasts
         const podcasts = await PodcastService.getPodcasts();
@@ -152,10 +162,18 @@ export const HomeProfileScreen: React.FC = () => {
             onPress={() => navigation.navigate('ChangeProfile', {})}
             style={styles.avatarContainer}
           >
-            <Image 
-              source={require('../../assets/avatar.png')}
-              style={styles.avatar}
-            />
+            {activeProfile ? (
+              <Avatar
+                size={60}
+                avatarIndex={activeProfile.avatar}
+                disabled
+              />
+            ) : (
+              <Image 
+                source={require('../../assets/avatar.png')}
+                style={styles.avatar}
+              />
+            )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.searchButton}>
             <Ionicons name="search" size={24} color={COLORS.text} />
@@ -258,9 +276,9 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
   },
   avatarContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     overflow: 'hidden',
   },
   avatar: {

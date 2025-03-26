@@ -21,6 +21,7 @@ import { AgeRange } from '../types/podcast';
 import { ProfileService } from '../services/ProfileService';
 import { RootStackParamList } from '../types/navigation';
 import { Profile } from '../types/profile';
+import { getAvatarIndices } from '../utils/avatarUtils';
 
 type EditProfileScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -42,6 +43,9 @@ export const EditProfileScreen: React.FC = () => {
   const [selectedAvatar, setSelectedAvatar] = useState(0);
   const [selectedAgeRanges, setSelectedAgeRanges] = useState<AgeRange[]>([]);
 
+  // Obtenir les indices des avatars disponibles
+  const avatarIndices = getAvatarIndices();
+  
   // Convertir les enums en tableaux pour l'affichage
   const ageRanges = Object.values(AgeRange);
   
@@ -204,12 +208,13 @@ export const EditProfileScreen: React.FC = () => {
             Choisir un avatar
           </Typography>
           <View style={styles.avatarsContainer}>
-            {[0, 1, 2, 3, 4].map((index) => (
+            {avatarIndices.map((index) => (
               <Avatar
                 key={index}
                 selected={selectedAvatar === index}
                 onPress={() => setSelectedAvatar(index)}
-                size={50}
+                size={80}
+                avatarIndex={index}
               />
             ))}
           </View>

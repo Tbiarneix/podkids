@@ -19,6 +19,7 @@ import { ProfileService } from '../services/ProfileService';
 import { PinService } from '../services/PinService';
 import { RootStackParamList } from '../types/navigation';
 import { Profile } from '../types/profile';
+import { getAvatarIndices } from '../utils/avatarUtils';
 
 type ChangeProfileScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -196,6 +197,7 @@ export const ChangeProfileScreen: React.FC = () => {
               <Avatar
                 size={120}
                 selected={true}
+                avatarIndex={currentProfile.avatar}
               />
             </TouchableOpacity>
 
@@ -246,6 +248,7 @@ export const ChangeProfileScreen: React.FC = () => {
                 <Avatar
                   size={60}
                   selected={currentProfile?.id === item.id}
+                  avatarIndex={item.avatar}
                 />
                 <Typography 
                   variant="caption" 
