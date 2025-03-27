@@ -479,11 +479,11 @@ export class PodcastService {
           // Créer le nouveau podcast
           const newPodcast: Podcast = {
             id: generateUniqueId(),
-            name: podcastData.name || feed.title || 'Podcast sans titre',
+            name: feed.title || 'Podcast sans titre',
             description: feed.description || '',
             cover: feed.imageUrl || feed.itunesImage || '',
             url: podcastData.url,
-            author: podcastData.author || feed.itunesOwnerName || feed.itunesAuthor || 'Auteur inconnu',
+            author: feed.itunesOwnerName || feed.itunesAuthor || 'Auteur inconnu',
             types: podcastTypes,
             ageRanges: ageRanges,
             subscription: false,
@@ -550,6 +550,126 @@ export class PodcastService {
     } catch (error) {
       console.error('Erreur lors du nettoyage des données de podcasts:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Initialise les podcasts correspondant aux tranches d'âge spécifiées
+   * @param ageRanges Liste des tranches d'âge pour lesquelles charger les podcasts
+   * @returns nombre de podcasts ajoutés
+   */
+  static async initializePodcastsByAgeRanges(ageRanges: AgeRange[]): Promise<number> {
+    try {
+      if (!ageRanges || ageRanges.length === 0) {
+        console.warn('Aucune tranche d\'âge spécifiée pour l\'initialisation des podcasts');
+        return 0;
+      }
+
+      console.log(`Initialisation des podcasts pour les tranches d'âge: ${ageRanges.join(', ')}...`);
+      
+      // Récupérer la liste actuelle des IDs de podcasts
+      const podcastIdsJson = await AsyncStorage.getItem(PODCAST_IDS_KEY);
+      const existingPodcastIds: string[] = podcastIdsJson ? JSON.parse(podcastIdsJson) : [];
+      
+      // Parcourir les données de la bibliothèque et ajouter chaque podcast correspondant aux tranches d'âge
+      const addedPodcastIds: string[] = [...existingPodcastIds];
+      const errors: string[] = [];
+      let addedCount = 0;
+
+      // Créer un Set des URLs des podcasts existants pour éviter les doublons
+      const existingPodcastUrls = new Set<string>();
+      for (const id of existingPodcastIds) {
+        const podcastJson = await AsyncStorage.getItem(`${PODCAST_PREFIX}${id}`);
+        if (podcastJson) {
+          const podcast = JSON.parse(podcastJson);
+          existingPodcastUrls.add(podcast.url);
+        }
+      }
+
+      // Traiter chaque podcast dans la bibliothèque
+      for (const podcastData of libraryData) {
+        try {
+          // Vérifier si le podcast existe déjà
+          if (existingPodcastUrls.has(podcastData.url)) {
+            continue;
+          }
+          
+          // Vérifier si le podcast correspond à au moins une des tranches d'âge spécifiées
+          const podcastAgeRanges: AgeRange[] = [];
+          for (const ageRangeKey of podcastData.AgeRange) {
+            if (ageRangeKey in AgeRange) {
+              podcastAgeRanges.push(AgeRange[ageRangeKey as keyof typeof AgeRange]);
+            }
+          }
+          
+          // Si le podcast ne correspond à aucune des tranches d'âge spécifiées, l'ignorer
+          if (!podcastAgeRanges.some(age => ageRanges.includes(age))) {
+            continue;
+          }
+
+          // Convertir les types de podcast du format JSON en enum PodcastType
+          const podcastTypes: PodcastType[] = [];
+          for (const typeKey of podcastData.PodcastType) {
+            if (typeKey in PodcastType) {
+              podcastTypes.push(PodcastType[typeKey as keyof typeof PodcastType]);
+            }
+          }
+
+          if (podcastTypes.length === 0) {
+            console.warn(`Aucun type de podcast valide pour le podcast: ${podcastData.name}`);
+            continue;
+          }
+
+          // Récupérer le flux RSS
+          const feed = await this.fetchRssFeed(podcastData.url);
+          
+          // Créer le nouveau podcast
+          const newPodcast: Podcast = {
+            id: generateUniqueId(),
+            name: podcastData.name || feed.title || 'Podcast sans titre',
+            description: feed.description || '',
+            cover: feed.imageUrl || feed.itunesImage || '',
+            url: podcastData.url,
+            author: podcastData.author || feed.itunesOwnerName || feed.itunesAuthor || 'Auteur inconnu',
+            types: podcastTypes,
+            ageRanges: podcastAgeRanges,
+            subscription: false,
+            deleteable: podcastData.deleteable !== undefined ? podcastData.deleteable : true,
+            episodes: feed.items.map((item: RssFeedItem) => ({
+              id: generateUniqueId(),
+              name: item.title || 'Épisode sans titre',
+              description: item.description || item.contentEncoded || item.content || '',
+              cover: item.itunesImage || feed.imageUrl || feed.itunesImage || '',
+              url: item.enclosureUrl || '',
+              duration: convertDurationToSeconds(item.itunesDuration),
+              status: EpisodeStatus.TO_LISTEN,
+              timestamp: 0,
+              publicationDate: item.pubDate ? new Date(item.pubDate).getTime() : Date.now()
+            }))
+          };
+          
+          // Ajouter le podcast individuellement
+          await AsyncStorage.setItem(`${PODCAST_PREFIX}${newPodcast.id}`, JSON.stringify(newPodcast));
+          addedPodcastIds.push(newPodcast.id);
+          addedCount++;
+          
+          // Mettre à jour la liste des IDs après chaque ajout
+          await AsyncStorage.setItem(PODCAST_IDS_KEY, JSON.stringify(addedPodcastIds));
+          
+          console.log(`Podcast ajouté: ${newPodcast.name} (${podcastData.url})`);
+        } catch (error) {
+          // Ignorer les erreurs individuelles pour continuer avec les autres podcasts
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`Erreur lors de l'ajout du podcast ${podcastData.name || podcastData.url}: ${errorMessage}`);
+          errors.push(`${podcastData.name || podcastData.url}: ${errorMessage}`);
+        }
+      }
+
+      console.log(`Initialisation terminée. ${addedCount} podcasts ajoutés, ${errors.length} erreurs.`);
+      return addedCount;
+    } catch (error) {
+      console.error('Erreur lors de l\'initialisation des podcasts par tranches d\'âge:', error);
+      return 0;
     }
   }
 }

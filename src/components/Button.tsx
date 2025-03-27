@@ -1,17 +1,19 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, TouchableOpacityProps } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, TouchableOpacityProps, ActivityIndicator } from 'react-native';
 import { COLORS, FONTS, SIZES, SPACING } from '../utils/theme';
 
 interface ButtonProps extends TouchableOpacityProps {
   title: string;
   variant?: 'primary' | 'secondary' | 'outline';
   fullWidth?: boolean;
+  loading?: boolean;
 }
 
 export const Button: React.FC<ButtonProps> = ({
   title,
   variant = 'primary',
   fullWidth = false,
+  loading = false,
   style,
   ...props
 }) => {
@@ -23,11 +25,19 @@ export const Button: React.FC<ButtonProps> = ({
         fullWidth && styles.fullWidth,
         style,
       ]}
+      disabled={loading}
       {...props}
     >
-      <Text style={[styles.text, styles[`${variant}Text`]]}>
-        {title}
-      </Text>
+      {loading ? (
+        <ActivityIndicator 
+          size="small" 
+          color={variant === 'outline' ? COLORS.primary : COLORS.text} 
+        />
+      ) : (
+        <Text style={[styles.text, styles[`${variant}Text`]]}>
+          {title}
+        </Text>
+      )}
     </TouchableOpacity>
   );
 };

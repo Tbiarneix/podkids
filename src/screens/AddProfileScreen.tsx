@@ -19,6 +19,7 @@ import { SelectionButton } from '../components/SelectionButton';
 import { COLORS, SPACING, FONTS } from '../utils/theme';
 import { AgeRange } from '../types/podcast';
 import { ProfileService } from '../services/ProfileService';
+import { PodcastService } from '../services/PodcastService';
 import { RootStackParamList } from '../types/navigation';
 import { getAvatarIndices } from '../utils/avatarUtils';
 
@@ -32,6 +33,7 @@ export const AddProfileScreen: React.FC = () => {
   const [name, setName] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState(0);
   const [selectedAgeRanges, setSelectedAgeRanges] = useState<AgeRange[]>([]);
+  const [loading, setLoading] = useState(false);
 
   // Obtenir les indices des avatars disponibles
   const avatarIndices = getAvatarIndices();
@@ -99,6 +101,17 @@ export const AddProfileScreen: React.FC = () => {
         avatar: selectedAvatar,
         ageRanges: selectedAgeRanges
       });
+
+      // Initialiser les podcasts correspondant aux tranches d'âge sélectionnées
+      setLoading(true);
+      try {
+        await PodcastService.initializePodcastsByAgeRanges(selectedAgeRanges);
+      } catch (podcastError) {
+        console.error('Erreur lors de l\'initialisation des podcasts:', podcastError);
+        // Ne pas bloquer la création du profil si l'initialisation des podcasts échoue
+      } finally {
+        setLoading(false);
+      }
 
       // Afficher une notification de succès et rediriger vers Settings
       navigation.navigate('Notification', {
@@ -188,6 +201,7 @@ export const AddProfileScreen: React.FC = () => {
           onPress={handleSave}
           fullWidth
           style={styles.saveButton}
+          loading={loading}
         />
       </ScrollView>
     </SafeAreaView>
