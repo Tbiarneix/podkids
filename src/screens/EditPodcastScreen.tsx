@@ -4,12 +4,9 @@ import {
   StyleSheet, 
   SafeAreaView, 
   TouchableOpacity, 
-  TextInput,
   ScrollView,
   ActivityIndicator,
   Alert,
-  Modal,
-  Text
 } from 'react-native';
 import { 
   useNavigation, 
@@ -27,7 +24,6 @@ import { COLORS, SPACING } from '../utils/theme';
 import { PodcastService } from '../services/PodcastService';
 import { RootStackParamList } from '../types/navigation';
 import { AgeRange, PodcastType, PodcastTypeDescription } from '../types/podcast';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type EditPodcastScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -49,9 +45,6 @@ export const EditPodcastScreen: React.FC = () => {
   const [podcastName, setPodcastName] = useState('');
   const [selectedAgeRanges, setSelectedAgeRanges] = useState<AgeRange[]>([]);
   const [selectedPodcastTypes, setSelectedPodcastTypes] = useState<PodcastType[]>([]);
-  const [urlError, setUrlError] = useState('');
-  const [showRawData, setShowRawData] = useState(false);
-  const [rawPodcastData, setRawPodcastData] = useState<string>('');
   const [isDeletable, setIsDeletable] = useState(true);
 
   // Convertir les enums en tableaux pour l'affichage
@@ -220,39 +213,6 @@ export const EditPodcastScreen: React.FC = () => {
     );
   };
 
-  const handleViewRawData = async () => {
-    try {
-      setLoading(true);
-      // Récupérer les données brutes depuis AsyncStorage
-      const podcastsJson = await AsyncStorage.getItem('@podkids:podcasts');
-      
-      if (podcastsJson) {
-        const allPodcasts = JSON.parse(podcastsJson);
-        // Trouver le podcast spécifique
-        const targetPodcast = allPodcasts.find((p: any) => p.id === podcastId);
-        
-        if (targetPodcast) {
-          // Formater les données pour une meilleure lisibilité
-          setRawPodcastData(JSON.stringify(targetPodcast, null, 2));
-          setShowRawData(true);
-        } else {
-          Alert.alert('Erreur', 'Podcast non trouvé dans AsyncStorage');
-        }
-      } else {
-        Alert.alert('Erreur', 'Aucune donnée de podcast trouvée dans AsyncStorage');
-      }
-    } catch (error) {
-      console.error('Erreur lors de la récupération des données brutes:', error);
-      Alert.alert('Erreur', 'Impossible de récupérer les données brutes du podcast');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCloseRawData = () => {
-    setShowRawData(false);
-  };
-
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -363,47 +323,7 @@ export const EditPodcastScreen: React.FC = () => {
             variant="outline"
           />
         )}
-
-        <Button
-          title="Voir les données brutes"
-          onPress={handleViewRawData}
-          fullWidth
-          style={styles.rawDataButton}
-          variant="outline"
-        />
       </ScrollView>
-
-      {/* Modal pour afficher les données brutes */}
-      <Modal
-        visible={showRawData}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={handleCloseRawData}
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Typography variant="title" style={styles.modalTitle}>
-                Données brutes du podcast
-              </Typography>
-              <TouchableOpacity onPress={handleCloseRawData} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color={COLORS.text} />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={styles.rawDataScrollView}>
-              <Text style={styles.rawDataText}>{rawPodcastData}</Text>
-            </ScrollView>
-            
-            <Button
-              title="Fermer"
-              onPress={handleCloseRawData}
-              fullWidth
-              style={styles.closeModalButton}
-            />
-          </View>
-        </SafeAreaView>
-      </Modal>
     </SafeAreaView>
   );
 };

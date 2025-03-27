@@ -59,7 +59,7 @@
     "name": "Olma",
     "author": "France Inter",
     "url": "https://radiofrance-podcast.net/podcast09/rss_21770.xml",
-    "AgeRange": ["BETWEEN_4_AND_6","BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "AgeRange": ["BETWEEN_4_AND_6", "BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
     "PodcastType": ["SCIENCE"],
     "deleteable": false
   },
@@ -76,7 +76,7 @@
     "author": "France Info et Astrapi",
     "url": "https://radiofrance-podcast.net/podcast09/rss_20689.xml",
     "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
-    "PodcastType": ["ACTU"],
+    "PodcastType": ["SOCIETY"],
     "deleteable": false
   },
   {
@@ -84,7 +84,7 @@
     "author": "France Inter",
     "url": "https://radiofrance-podcast.net/podcast09/rss_21797.xml",
     "AgeRange": ["BETWEEN_10_AND_12", "BETWEEN_13_AND_15"],
-    "PodcastType": ["ACTU"],
+    "PodcastType": ["SOCIETY"],
     "deleteable": false
   },
   {
@@ -124,7 +124,7 @@
     "author": "France Inter",
     "url": "https://radiofrance-podcast.net/podcast09/rss_23033.xml",
     "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
-    "PodcastType": ["ACTU"],
+    "PodcastType": ["SOCIETY"],
     "deleteable": false
   },
   {
@@ -132,7 +132,7 @@
     "author": "France Inter",
     "url": "https://radiofrance-podcast.net/podcast09/rss_10137.xml",
     "AgeRange": ["BETWEEN_10_AND_12", "BETWEEN_13_AND_15", "OVER_15"],
-    "PodcastType": ["STORIES", "ADVENTURE" ],
+    "PodcastType": ["STORIES", "ADVENTURE"],
     "deleteable": false
   },
   {
@@ -147,7 +147,7 @@
     "name": "Le journal intime de...",
     "author": "France Musique",
     "url": "https://radiofrance-podcast.net/podcast09/rss_21815.xml",
-    "AgeRange": ["BETWEEN_10_AND_12","BETWEEN_13_AND_15", "OVER_15"],
+    "AgeRange": ["BETWEEN_10_AND_12", "BETWEEN_13_AND_15", "OVER_15"],
     "PodcastType": ["HISTORY", "HEROES"],
     "deleteable": false
   },
@@ -164,7 +164,253 @@
     "author": "France Info",
     "url": "https://radiofrance-podcast.net/podcast09/rss_22882.xml",
     "AgeRange": ["BETWEEN_13_AND_15", "OVER_15"],
-    "PodcastType": ["ACTU"],
+    "PodcastType": ["SOCIETY"],
+    "deleteable": false
+  },
+  {
+    "name": "Des histoires en musique",
+    "author": "Elodie Fondacci et Radio Classique",
+    "url": "https://feed.ausha.co/brvl6HgdLxW8",
+    "AgeRange": [
+      "BETWEEN_4_AND_6",
+      "BETWEEN_7_AND_9",
+      "BETWEEN_10_AND_12",
+      "BETWEEN_13_AND_15",
+      "OVER_15"
+    ],
+    "PodcastType": ["STORIES", "MUSIC"],
+    "deleteable": false
+  },
+  {
+    "name": "Wild",
+    "author": " Ambre Gaudet, Tristan de la Fléchère et Morgan Peyrot",
+    "url": "https://feeds.acast.com/public/shows/wildpodcast",
+    "AgeRange": ["BETWEEN_4_AND_6", "BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["SCIENCE", "NATURE"],
+    "deleteable": false
+  },
+  {
+    "name": "Petits Curieux",
+    "author": "Choses à savoir",
+    "url": "https://feeds.acast.com/public/shows/petits-curieux",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["SCIENCE", "KNOWLEDGE"],
+    "deleteable": false
+  },
+  {
+    "name": "La grande histoire de Pomme d'Api",
+    "author": "Bayard jeunesse",
+    "url": "https://feed.ausha.co/B6r8OclKP6gn",
+    "AgeRange": ["UNDER_3", "BETWEEN_4_AND_6"],
+    "PodcastType": ["STORIES"],
+    "deleteable": false
+  },
+  {
+    "name": "Mythes et légendes",
+    "author": "Quelle histoire",
+    "url": "https://feeds.acast.com/public/shows/mythes-et-legendes",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12", "BETWEEN_13_AND_15"],
+    "PodcastType": ["ADVENTURE", "HEROES"],
+    "deleteable": false
+  },
+  {
+    "name": "But Why: A Podcast For Curious Kids",
+    "author": "Vermont Public",
+    "url": "https://podcasts.vpr.net/but-why",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12", "BETWEEN_13_AND_15"],
+    "PodcastType": ["LANGUAGES", "CULTURE", "KNOWLEDGE"],
+    "deleteable": false
+  },
+  {
+    "name": "Les ptites histoires",
+    "author": "Taleming",
+    "url": "https://access.acast.com/rss/5b7989f2-e269-4dd2-94c0-752f7bbc687a/default",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["STORIES"],
+    "deleteable": false
+  },
+  {
+    "name": "Dis Jammy",
+    "author": "Jammy Gourmand",
+    "url": "https://www.omnycontent.com/d/playlist/5862e877-aee5-40db-a58d-ae2800ddc8a3/fd18ee21-dade-4894-94f4-ae3900a5a05f/2a28d367-7b85-42ae-a90b-ae3900a5a06d/podcast.rss",
+    "AgeRange": ["BETWEEN_4_AND_6", "BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["SCIENCE", "KNOWLEDGE"],
+    "deleteable": false
+  },
+  {
+    "name": "Raconte-moi une bêtise",
+    "author": "Audion",
+    "url": "https://feeds.360.audion.fm/Mpn0DSy-92wF1uiPKQe9u",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["KNOWLEDGE", "PERSONAL_DEVELOPMENT"],
+    "deleteable": false
+  },
+  {
+    "name": "Quand je serai grand, je serai musicien",
+    "author": "Kidsono et Radio Nova",
+    "url": "https://feeds.acast.com/public/shows/quand-je-serai-grand-je-serai-musicien",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["KNOWLEDGE", "PERSONAL_DEVELOPMENT"],
+    "deleteable": false
+  },
+  {
+    "name": "Ma vie d'ado au collège",
+    "author": "Bayard jeunesse",
+    "url": "https://feed.ausha.co/ygdr9TqM3aYz",
+    "AgeRange": ["BETWEEN_10_AND_12", "BETWEEN_13_AND_15"],
+    "PodcastType": ["SOCIETY", "PERSONAL_DEVELOPMENT"],
+    "deleteable": false
+  },
+  {
+    "name": "La Voix Haute",
+    "author": "Matthieu Farcy",
+    "url": "https://la-voix-haute.lepodcast.fr/rss",
+    "AgeRange": ["BETWEEN_10_AND_12", "BETWEEN_13_AND_15"],
+    "PodcastType": ["SOCIETY", "ART"],
+    "deleteable": false
+  },
+  {
+    "name": "Polissons",
+    "author": "Arte Radio",
+    "url": "https://www.arteradio.com/xml_flux?fluxname=polissons",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12", "BETWEEN_13_AND_15"],
+    "PodcastType": [
+      "KNOWLEDGE",
+      "PERSONAL_DEVELOPMENT",
+      "SOCIETY",
+      "STORIES",
+      "CULTURE",
+      "SCIENCE",
+      "NATURE"
+    ],
+    "deleteable": false
+  },
+  {
+    "name": "Dis Docteur",
+    "author": "Livi",
+    "url": "https://feeds.acast.com/public/shows/dis-docteur",
+    "AgeRange": ["BETWEEN_4_AND_6", "BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["SPORT", "PERSONAL_DEVELOPMENT"],
+    "deleteable": false
+  },
+  {
+    "name": "Encore une histoire",
+    "author": "Benjamin Muller, Céline Kallmann et Alexandre Ferreira",
+    "url": "https://access.acast.com/rss/670d1795df4dd6f896655670/default",
+    "AgeRange": ["BETWEEN_4_AND_6", "BETWEEN_7_AND_9"],
+    "PodcastType": ["STORIES"],
+    "deleteable": false
+  },
+  {
+    "name": "Bête de science",
+    "author": "Futura",
+    "url": "https://feeds.audiomeans.fr/feed/77ce2d19-11b4-46ce-85b4-078810cb4f4d.xml",
+    "AgeRange": ["BETWEEN_4_AND_6", "BETWEEN_7_AND_9"],
+    "PodcastType": ["SCIENCE", "NATURE", "KNOWLEDGE"],
+    "deleteable": false
+  },
+  {
+    "name": "Merci Rémi !",
+    "author": "Billy the cast",
+    "url": "https://feeds.audiomeans.fr/feed/bf8e4ec8-a05e-4234-86f8-9465c5344d3e.xml",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12", "BETWEEN_13_AND_15"],
+    "PodcastType": ["ENTERTAINMENT"],
+    "deleteable": false
+  },
+  {
+    "name": "Les dents et dodo",
+    "author": "BFMTV",
+    "url": "https://feeds.simplecast.com/Y_A8bQt7",
+    "AgeRange": ["UNDER_3", "BETWEEN_4_AND_6"],
+    "PodcastType": ["ENTERTAINMENT", "STORIES", "KNOWLEDGE"],
+    "deleteable": false
+  },
+  {
+    "name": "Politikids",
+    "author": "Billy the cast",
+    "url": "https://feeds.audiomeans.fr/feed/7ea66190-a1ee-4aaa-b90f-86c7e7a62927.xml",
+    "AgeRange": ["UNDER_3", "BETWEEN_4_AND_6"],
+    "PodcastType": ["ENTERTAINMENT", "STORIES", "KNOWLEDGE"],
+    "deleteable": false
+  },
+  {
+    "name": "Savez-vous planter les choux ?",
+    "author": "Billy the cast",
+    "url": "https://feeds.audiomeans.fr/feed/31e0ae3b-a438-482f-9715-4c0d9508b3c5.xml",
+    "AgeRange": ["BETWEEN_4_AND_6", "BETWEEN_7_AND_9"],
+    "PodcastType": ["KNOWLEDGE"],
+    "deleteable": false
+  },
+  {
+    "name": "Le club de Lulu",
+    "author": "Bayard jeunesse",
+    "url": "https://feed.ausha.co/BNjmJIJLMeM4",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["ENTERTAINMENT", "PERSONAL_DEVELOPMENT"],
+    "deleteable": false
+  },
+  {
+    "name": "Curieux de science",
+    "author": "Bayard jeunesse",
+    "url": "https://feed.ausha.co/Bqr2pcd8Aaqp",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["KNOWLEDGE", "SCIENCE"],
+    "deleteable": false
+  },
+  {
+    "name": "Qui a inventé ?",
+    "author": "Bayard jeunesse",
+    "url": "https://feed.ausha.co/ygdr9TNV059K",
+    "AgeRange": ["BETWEEN_4_AND_6", "BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["KNOWLEDGE"],
+    "deleteable": false
+  },
+  {
+    "name": "Journaliste jeunesse",
+    "author": "Bayard jeunesse",
+    "url": "https://feed.ausha.co/bWxNVi3KGOEd",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12", "BETWEEN_13_AND_15", "OVER_15"],
+    "PodcastType": ["KNOWLEDGE", "SOCIETY"],
+    "deleteable": false
+  },
+  {
+    "name": "L'Effet Panda",
+    "author": "WWF France",
+    "url": "https://feed.ausha.co/yEqrAhYa701j",
+    "AgeRange": ["BETWEEN_10_AND_12", "BETWEEN_13_AND_15", "OVER_15"],
+    "PodcastType": ["KNOWLEDGE", "SCIENCE", "SOCIETY", "NATURE"],
+    "deleteable": false
+  },
+  {
+    "name": "Oh my god !",
+    "author": "Phosphore",
+    "url": "https://feed.ausha.co/bWxNVirYw4Pr",
+    "AgeRange": ["BETWEEN_13_AND_15", "OVER_15"],
+    "PodcastType": ["SOCIETY", "ENTERTAINMENT"],
+    "deleteable": false
+  },
+  {
+    "name": "Histoires de jeunesse",
+    "author": "Bayard jeunesse",
+    "url": "https://feed.ausha.co/omX0NIGRan0O",
+    "AgeRange": ["BETWEEN_13_AND_15", "OVER_15"],
+    "PodcastType": ["SOCIETY", "ENTERTAINMENT"],
+    "deleteable": false
+  },
+  {
+    "name": "Passion Médiéviste",
+    "author": "Fanny Cohen Moreau",
+    "url": "http://feeds.soundcloud.com/users/soundcloud:users:147058082/sounds.rss",
+    "AgeRange": ["OVER_15"],
+    "PodcastType": ["SOCIETY", "HISTORY"],
+    "deleteable": false
+  },
+  {
+    "name": "Photosensible",
+    "author": "Thomas Biarneix",
+    "url": "https://photosensible.lepodcast.fr/rss",
+    "AgeRange": ["OVER_15"],
+    "PodcastType": ["SOCIETY", "ENTERTAINMENT"],
     "deleteable": false
   }
 ]

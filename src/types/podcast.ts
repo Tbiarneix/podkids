@@ -10,6 +10,7 @@ export enum PodcastType {
   MUSIC = "Musiques et Comptines",
   NATURE = "Natures et Animaux",
   SCIENCE = "Science et Esprit critique",
+  KNOWLEDGE = "Culture générale",
   ADVENTURE = "Aventures et Mystères",
   CULTURE = "Culture et Traditions",
   PERSONAL_DEVELOPMENT = "Développement personnel et Emotions",
@@ -20,7 +21,8 @@ export enum PodcastType {
   LANGUAGES = "Langues et Cultures étrangères",
   GAMES = "Jeux et divertissement",
   HEROES = "Héros et Légendes",
-  ACTU = "Actualités et Informations"
+  SOCIETY = "Société, actualités et Informations",
+  ENTERTAINMENT = "Amusement et divertissement"
 }
 
 export enum PodcastTypeDescription {
@@ -29,8 +31,9 @@ export enum PodcastTypeDescription {
   MUSIC = "Chansons pour enfants, comptines et apprentissage de la musique",
   NATURE = "Histoires sur les animaux, les plantes, l'écologie et les aventures dans la nature",
   SCIENCE = "Explications simplifiées des concepts scientifiques, expériences amusantes et découvertes fascinantes",
+  KNOWLEDGE = "Informations générales et petites curiosités pour mieux comprendre le monde",
   ADVENTURE = "Histoires d'aventures, de détectives, de mystères et d'explorations",
-  CULTURE = "Documentaires sur la culture générale, les différentes cultures, traditions, fêtes et coutumes du monde entier",
+  CULTURE = "Documentaires sur les différentes cultures, traditions, fêtes et coutumes du monde entier",
   PERSONAL_DEVELOPMENT = "Discussions sur les émotions, la confiance en soi, l'amitié et la gestion des conflits",
   ART = "Activités créatives, arts plastiques, bricolage, et histoires inspirantes sur des artistes",
   SPORT = "Présentation de différents sports, conseils pour rester actif et histoires inspirantes d'athlètes jeunes",
@@ -39,7 +42,8 @@ export enum PodcastTypeDescription {
   LANGUAGES = "Apprentissage de nouvelles langues, contes et histoires en langues étrangères, et exploration des cultures du monde entier",
   GAMES = "Discussions sur les jeux de société, les jeux vidéo adaptés aux enfants et les activités de récréation et loisirs",
   HEROES = "Histoires de héros célèbres, légendes mythologiques, super-héros et personnages historiques inspirants",
-  ACTU = "Pour mieux comprendre et décortiquer les actualités et les informations du quotidien"
+  SOCIETY = "Pour mieux comprendre la société et décortiquer les actualités et les informations du quotidien",
+  ENTERTAINMENT = "Emissions de divertissement, de loisirs et de récréation"
 }
 
 export enum AgeRange {

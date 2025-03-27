@@ -5,6 +5,8 @@ import { convertDurationToSeconds } from '../utils/timeUtils';
 import libraryData from '../data/library.json';
 
 const PODCASTS_STORAGE_KEY = '@podkids:podcasts';
+const PODCAST_IDS_KEY = '@podkids:podcast_ids';
+const PODCAST_PREFIX = '@podkids:podcast:';
 
 // Fonction pour générer un ID unique compatible avec React Native
 const generateUniqueId = (): string => {
@@ -49,8 +51,24 @@ export class PodcastService {
    */
   static async getPodcasts(): Promise<Podcast[]> {
     try {
-      const podcastsJson = await AsyncStorage.getItem(PODCASTS_STORAGE_KEY);
-      return podcastsJson ? JSON.parse(podcastsJson) : [];
+      // Récupérer la liste des IDs de podcasts
+      const podcastIdsJson = await AsyncStorage.getItem(PODCAST_IDS_KEY);
+      const podcastIds: string[] = podcastIdsJson ? JSON.parse(podcastIdsJson) : [];
+      
+      if (podcastIds.length === 0) {
+        return [];
+      }
+      
+      // Récupérer chaque podcast individuellement
+      const podcasts: Podcast[] = [];
+      for (const id of podcastIds) {
+        const podcastJson = await AsyncStorage.getItem(`${PODCAST_PREFIX}${id}`);
+        if (podcastJson) {
+          podcasts.push(JSON.parse(podcastJson));
+        }
+      }
+      
+      return podcasts;
     } catch (error) {
       console.error('Erreur lors de la récupération des podcasts:', error);
       return [];
@@ -62,8 +80,8 @@ export class PodcastService {
    */
   static async getPodcastById(id: string): Promise<Podcast | null> {
     try {
-      const podcasts = await this.getPodcasts();
-      return podcasts.find(podcast => podcast.id === id) || null;
+      const podcastJson = await AsyncStorage.getItem(`${PODCAST_PREFIX}${id}`);
+      return podcastJson ? JSON.parse(podcastJson) : null;
     } catch (error) {
       console.error(`Erreur lors de la récupération du podcast ${id}:`, error);
       return null;
@@ -119,9 +137,6 @@ export class PodcastService {
       // Récupérer le flux RSS
       const feed = await this.fetchRssFeed(url);
       
-      // Récupérer les podcasts existants
-      const podcasts = await this.getPodcasts();
-      
       // Créer le nouveau podcast
       const newPodcast: Podcast = {
         id: generateUniqueId(),
@@ -147,11 +162,16 @@ export class PodcastService {
         }))
       };
       
-      // Ajouter le nouveau podcast à la liste
-      podcasts.push(newPodcast);
+      // Récupérer la liste des IDs de podcasts
+      const podcastIdsJson = await AsyncStorage.getItem(PODCAST_IDS_KEY);
+      const podcastIds: string[] = podcastIdsJson ? JSON.parse(podcastIdsJson) : [];
       
-      // Enregistrer la liste mise à jour
-      await AsyncStorage.setItem(PODCASTS_STORAGE_KEY, JSON.stringify(podcasts));
+      // Ajouter le nouvel ID
+      podcastIds.push(newPodcast.id);
+      
+      // Enregistrer l'ID et le podcast
+      await AsyncStorage.setItem(PODCAST_IDS_KEY, JSON.stringify(podcastIds));
+      await AsyncStorage.setItem(`${PODCAST_PREFIX}${newPodcast.id}`, JSON.stringify(newPodcast));
       
       return newPodcast;
     } catch (error) {
@@ -179,17 +199,16 @@ export class PodcastService {
     }
   ): Promise<Podcast | null> {
     try {
-      const podcasts = await this.getPodcasts();
-      const index = podcasts.findIndex(p => p.id === podcastId);
+      const podcast = await this.getPodcastById(podcastId);
       
-      if (index === -1) {
+      if (!podcast) {
         throw new Error('Podcast non trouvé');
       }
 
-      podcasts[index] = { ...podcasts[index], ...updates };
-      await AsyncStorage.setItem(PODCASTS_STORAGE_KEY, JSON.stringify(podcasts));
+      const updatedPodcast = { ...podcast, ...updates };
+      await AsyncStorage.setItem(`${PODCAST_PREFIX}${podcastId}`, JSON.stringify(updatedPodcast));
 
-      return podcasts[index];
+      return updatedPodcast;
     } catch (error) {
       console.error('Erreur lors de la mise à jour du podcast:', error);
       throw error;
@@ -201,9 +220,16 @@ export class PodcastService {
    */
   static async deletePodcast(id: string): Promise<void> {
     try {
-      const podcasts = await this.getPodcasts();
-      const updatedPodcasts = podcasts.filter(podcast => podcast.id !== id);
-      await AsyncStorage.setItem(PODCASTS_STORAGE_KEY, JSON.stringify(updatedPodcasts));
+      // Récupérer la liste des IDs de podcasts
+      const podcastIdsJson = await AsyncStorage.getItem(PODCAST_IDS_KEY);
+      const podcastIds: string[] = podcastIdsJson ? JSON.parse(podcastIdsJson) : [];
+      
+      // Supprimer l'ID de la liste
+      const updatedPodcastIds = podcastIds.filter(podcastId => podcastId !== id);
+      
+      // Mettre à jour la liste des IDs et supprimer le podcast
+      await AsyncStorage.setItem(PODCAST_IDS_KEY, JSON.stringify(updatedPodcastIds));
+      await AsyncStorage.removeItem(`${PODCAST_PREFIX}${id}`);
     } catch (error) {
       console.error('Erreur lors de la suppression du podcast:', error);
       throw error;
@@ -220,28 +246,27 @@ export class PodcastService {
     timestamp?: number
   ): Promise<void> {
     try {
-      const podcasts = await this.getPodcasts();
-      const podcastIndex = podcasts.findIndex(p => p.id === podcastId);
+      const podcast = await this.getPodcastById(podcastId);
       
-      if (podcastIndex === -1) {
+      if (!podcast) {
         throw new Error('Podcast non trouvé');
       }
       
-      const episodeIndex = podcasts[podcastIndex].episodes.findIndex(e => e.id === episodeId);
+      const episodeIndex = podcast.episodes.findIndex(e => e.id === episodeId);
       
       if (episodeIndex === -1) {
         throw new Error('Épisode non trouvé');
       }
 
       // Mettre à jour le statut de l'épisode
-      podcasts[podcastIndex].episodes[episodeIndex].status = status;
+      podcast.episodes[episodeIndex].status = status;
       
       // Mettre à jour le timestamp si fourni
       if (timestamp !== undefined) {
-        podcasts[podcastIndex].episodes[episodeIndex].timestamp = timestamp;
+        podcast.episodes[episodeIndex].timestamp = timestamp;
       }
 
-      await AsyncStorage.setItem(PODCASTS_STORAGE_KEY, JSON.stringify(podcasts));
+      await AsyncStorage.setItem(`${PODCAST_PREFIX}${podcastId}`, JSON.stringify(podcast));
     } catch (error) {
       console.error('Erreur lors de la mise à jour du statut de l\'épisode:', error);
       throw error;
@@ -257,21 +282,20 @@ export class PodcastService {
     timestamp: number
   ): Promise<void> {
     try {
-      const podcasts = await this.getPodcasts();
-      const podcastIndex = podcasts.findIndex(p => p.id === podcastId);
+      const podcast = await this.getPodcastById(podcastId);
       
-      if (podcastIndex === -1) {
+      if (!podcast) {
         throw new Error('Podcast non trouvé');
       }
       
-      const episodeIndex = podcasts[podcastIndex].episodes.findIndex(e => e.id === episodeId);
+      const episodeIndex = podcast.episodes.findIndex(e => e.id === episodeId);
       
       if (episodeIndex === -1) {
         throw new Error('Épisode non trouvé');
       }
       
-      podcasts[podcastIndex].episodes[episodeIndex].timestamp = timestamp;
-      await AsyncStorage.setItem(PODCASTS_STORAGE_KEY, JSON.stringify(podcasts));
+      podcast.episodes[episodeIndex].timestamp = timestamp;
+      await AsyncStorage.setItem(`${PODCAST_PREFIX}${podcastId}`, JSON.stringify(podcast));
     } catch (error) {
       console.error('Erreur lors de la mise à jour de la position de lecture:', error);
       throw error;
@@ -283,14 +307,11 @@ export class PodcastService {
    */
   static async refreshPodcastEpisodes(podcastId: string): Promise<Podcast | null> {
     try {
-      const podcasts = await this.getPodcasts();
-      const podcastIndex = podcasts.findIndex(p => p.id === podcastId);
+      const podcast = await this.getPodcastById(podcastId);
       
-      if (podcastIndex === -1) {
+      if (!podcast) {
         throw new Error('Podcast non trouvé');
       }
-      
-      const podcast = podcasts[podcastIndex];
       
       // Récupérer le flux RSS mis à jour
       const feed = await this.fetchRssFeed(podcast.url);
@@ -330,9 +351,8 @@ export class PodcastService {
         }
       });
       
-      // Mettre à jour les podcasts
-      podcasts[podcastIndex] = podcast;
-      await AsyncStorage.setItem(PODCASTS_STORAGE_KEY, JSON.stringify(podcasts));
+      // Mettre à jour le podcast
+      await AsyncStorage.setItem(`${PODCAST_PREFIX}${podcastId}`, JSON.stringify(podcast));
       
       return podcast;
     } catch (error) {
@@ -403,8 +423,10 @@ export class PodcastService {
   static async initializeDefaultPodcasts(): Promise<boolean> {
     try {
       // Vérifier si des podcasts existent déjà
-      const podcasts = await this.getPodcasts();
-      if (podcasts.length > 0) {
+      const podcastIdsJson = await AsyncStorage.getItem(PODCAST_IDS_KEY);
+      const podcastIds: string[] = podcastIdsJson ? JSON.parse(podcastIdsJson) : [];
+      
+      if (podcastIds.length > 0) {
         console.log('La bibliothèque de podcasts contient déjà des podcasts, pas d\'initialisation nécessaire');
         return false;
       }
@@ -412,7 +434,7 @@ export class PodcastService {
       console.log('Initialisation de la bibliothèque de podcasts avec les podcasts par défaut...');
       
       // Parcourir les données de la bibliothèque et ajouter chaque podcast
-      const addedPodcasts: Podcast[] = [];
+      const addedPodcastIds: string[] = [];
       const errors: string[] = [];
 
       // Traiter chaque podcast dans la bibliothèque
@@ -479,13 +501,12 @@ export class PodcastService {
             }))
           };
           
-          // Ajouter le nouveau podcast à la liste
-          addedPodcasts.push(newPodcast);
+          // Ajouter le podcast individuellement
+          await AsyncStorage.setItem(`${PODCAST_PREFIX}${newPodcast.id}`, JSON.stringify(newPodcast));
+          addedPodcastIds.push(newPodcast.id);
           
-          // Enregistrer chaque podcast immédiatement pour éviter de perdre tout le travail en cas d'erreur
-          const currentPodcasts = await this.getPodcasts();
-          currentPodcasts.push(newPodcast);
-          await AsyncStorage.setItem(PODCASTS_STORAGE_KEY, JSON.stringify(currentPodcasts));
+          // Mettre à jour la liste des IDs après chaque ajout
+          await AsyncStorage.setItem(PODCAST_IDS_KEY, JSON.stringify(addedPodcastIds));
           
           console.log(`Podcast ajouté: ${newPodcast.name} (${podcastData.url})`);
         } catch (error) {
@@ -496,11 +517,39 @@ export class PodcastService {
         }
       }
 
-      console.log(`Initialisation terminée. ${addedPodcasts.length} podcasts ajoutés, ${errors.length} erreurs.`);
+      console.log(`Initialisation terminée. ${addedPodcastIds.length} podcasts ajoutés, ${errors.length} erreurs.`);
       return true;
     } catch (error) {
       console.error('Erreur lors de l\'initialisation des podcasts par défaut:', error);
       return false;
+    }
+  }
+
+  /**
+   * Nettoie complètement toutes les données de podcasts
+   * Utile en cas d'erreur "database or disk is full"
+   */
+  static async cleanAllPodcastData(): Promise<void> {
+    try {
+      console.log('Nettoyage de toutes les données de podcasts...');
+      
+      // Récupérer la liste des IDs de podcasts
+      const podcastIdsJson = await AsyncStorage.getItem(PODCAST_IDS_KEY);
+      const podcastIds: string[] = podcastIdsJson ? JSON.parse(podcastIdsJson) : [];
+      
+      // Supprimer chaque podcast individuellement
+      for (const id of podcastIds) {
+        await AsyncStorage.removeItem(`${PODCAST_PREFIX}${id}`);
+      }
+      
+      // Supprimer la liste des IDs et l'ancienne clé de stockage
+      await AsyncStorage.removeItem(PODCAST_IDS_KEY);
+      await AsyncStorage.removeItem(PODCASTS_STORAGE_KEY);
+      
+      console.log('Nettoyage terminé. Toutes les données de podcasts ont été supprimées.');
+    } catch (error) {
+      console.error('Erreur lors du nettoyage des données de podcasts:', error);
+      throw error;
     }
   }
 }
