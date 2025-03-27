@@ -12,8 +12,8 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import Slider from '@react-native-community/slider';
 import { Typography } from '../components/Typography';
+import { ProgressBar } from '../components/ProgressBar';
 import { COLORS, SPACING, SIZES } from '../utils/theme';
 import { PodcastService } from '../services/PodcastService';
 import { usePlayer } from '../contexts/PlayerContext';
@@ -125,6 +125,10 @@ export const EpisodeDetailsScreen: React.FC = () => {
     
     setIsSeeking(true);
     setSliderValue(value);
+    
+    // Mettre à jour le texte du temps actuel pendant le seeking
+    const newTime = Math.floor(value * episode.duration);
+    setCurrentTimeText(formatTime(newTime));
   };
 
   const handleSliderComplete = async (value: number) => {
@@ -283,17 +287,17 @@ export const EpisodeDetailsScreen: React.FC = () => {
               {isCurrentEpisode ? formatTime(currentTime) : formatTime(episode.timestamp || 0)}
             </Typography>
             
-            <Slider
-              style={styles.slider}
-              minimumValue={0}
-              maximumValue={1}
-              value={sliderValue}
-              minimumTrackTintColor={COLORS.primary}
-              maximumTrackTintColor={COLORS.textSecondary}
-              thumbTintColor={COLORS.primary}
-              onValueChange={handleSliderChange}
-              onSlidingComplete={handleSliderComplete}
-              disabled={!episode || episode.duration <= 0}
+            <ProgressBar
+              progress={sliderValue}
+              onSeek={handleSliderComplete}
+              onSeeking={handleSliderChange}
+              barHeight={6}
+              handleSize={16}
+              backgroundColor={COLORS.textSecondary}
+              progressColor={COLORS.primary}
+              handleColor={COLORS.primary}
+              handleBorderColor={COLORS.background}
+              style={styles.progressBar}
             />
             
             <Typography variant="caption" style={styles.timeText}>
@@ -452,13 +456,14 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: SPACING.md,
   },
-  slider: {
+  progressBar: {
     flex: 1,
-    height: 40,
+    height: 6,
+    justifyContent: 'center',
   },
   timeText: {
     color: COLORS.text,
-    width: 40,
+    width: 50,
     textAlign: 'center',
   },
   controlsContainer: {

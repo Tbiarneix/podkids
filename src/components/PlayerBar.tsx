@@ -4,14 +4,13 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   Image,
-  Dimensions,
-  Animated,
-  PanResponder
+  Animated
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from './Typography';
+import { ProgressBar } from './ProgressBar';
 import { COLORS, SPACING } from '../utils/theme';
 import { formatTime } from '../utils/timeUtils';
 import { Episode, Podcast } from '../types/podcast';
@@ -70,37 +69,24 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
     }
   };
 
-  // Gestion du glissement sur la barre de progression
-  const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderGrant: () => {
-      setIsSeeking(true);
-    },
-    onPanResponderMove: (_, gestureState) => {
-      const { moveX } = gestureState;
-      const progressBarWidth = Dimensions.get('window').width;
-      let position = moveX / progressBarWidth;
-      
-      // Limiter la position entre 0 et 1
-      position = Math.max(0, Math.min(1, position));
-      
-      setSeekPosition(position);
-      
-      // Calculer le temps restant précisément pendant le seeking
-      if (episode?.duration) {
-        const remainingTime = episode.duration * (1 - position);
-        setRemainingTimeText(`${formatTime(remainingTime)} restantes`);
-      }
-    },
-    onPanResponderRelease: () => {
-      if (episode?.duration) {
-        const newPosition = seekPosition * episode.duration;
-        seekTo(newPosition);
-      }
-      setIsSeeking(false);
-    },
-  });
+  const handleSeeking = (position: number) => {
+    setIsSeeking(true);
+    setSeekPosition(position);
+    
+    // Calculer le temps restant précisément pendant le seeking
+    if (episode?.duration) {
+      const remainingTime = episode.duration * (1 - position);
+      setRemainingTimeText(`${formatTime(remainingTime)} restantes`);
+    }
+  };
+
+  const handleSeek = (position: number) => {
+    if (episode?.duration) {
+      const newPosition = position * episode.duration;
+      seekTo(newPosition);
+    }
+    setIsSeeking(false);
+  };
 
   return (
     <Animated.View 
@@ -112,23 +98,11 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
         })}
       ]}
     >
-      <View 
-        style={styles.progressBar}
-        {...panResponder.panHandlers}
-      >
-        <View 
-          style={[
-            styles.progressFill, 
-            { width: `${(isSeeking ? seekPosition : progress) * 100}%` }
-          ]} 
-        />
-        <View 
-          style={[
-            styles.progressHandle, 
-            { left: `${(isSeeking ? seekPosition : progress) * 100}%` }
-          ]} 
-        />
-      </View>
+      <ProgressBar 
+        progress={progress}
+        onSeek={handleSeek}
+        onSeeking={handleSeeking}
+      />
       
       <View style={styles.content}>
         <TouchableOpacity 
@@ -177,29 +151,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
     overflow: 'hidden',
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: COLORS.textSecondary,
-    width: '100%',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: COLORS.primary,
-    position: 'absolute',
-    left: 0,
-    top: 0,
-  },
-  progressHandle: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: COLORS.primary,
-    position: 'absolute',
-    top: -3,
-    marginLeft: -6,
-    borderWidth: 2,
-    borderColor: COLORS.textTertiary,
   },
   content: {
     flex: 1,
