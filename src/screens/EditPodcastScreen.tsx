@@ -52,6 +52,7 @@ export const EditPodcastScreen: React.FC = () => {
   const [urlError, setUrlError] = useState('');
   const [showRawData, setShowRawData] = useState(false);
   const [rawPodcastData, setRawPodcastData] = useState<string>('');
+  const [isDeletable, setIsDeletable] = useState(true);
 
   // Convertir les enums en tableaux pour l'affichage
   const ageRanges = Object.values(AgeRange);
@@ -67,6 +68,7 @@ export const EditPodcastScreen: React.FC = () => {
           setPodcastUrl(podcast.url);
           setSelectedAgeRanges(podcast.ageRanges);
           setSelectedPodcastTypes(podcast.types);
+          setIsDeletable(podcast.deleteable !== undefined ? podcast.deleteable : true);
         } else {
           // Podcast non trouvé, afficher une erreur
           navigation.navigate('Notification', {
@@ -352,13 +354,15 @@ export const EditPodcastScreen: React.FC = () => {
           style={styles.updateButton}
         />
 
-        <Button
-          title="Supprimer le podcast"
-          onPress={handleDeletePodcast}
-          fullWidth
-          style={styles.deleteButton}
-          variant="outline"
-        />
+        {isDeletable && (
+          <Button
+            title="Supprimer le podcast"
+            onPress={handleDeletePodcast}
+            fullWidth
+            style={styles.deleteButton}
+            variant="outline"
+          />
+        )}
 
         <Button
           title="Voir les données brutes"

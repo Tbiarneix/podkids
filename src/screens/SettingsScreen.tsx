@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, Alert, ScrollView } from 'react-native';
+import { View, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, Alert, ScrollView, Modal } from 'react-native';
 import { Typography } from '../components/Typography';
 import { Toast } from '../components/Toast';
 import { ProfileItem } from '../components/ProfileItem';
@@ -10,8 +10,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { ProfileService } from '../services/ProfileService';
+import { PodcastService } from '../services/PodcastService';
 import { Profile } from '../types/profile';
 import { StorageUtils } from '../utils/StorageUtils';
+import { LoadingScreen } from '../components/LoadingScreen';
 
 type SettingsScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -24,6 +26,7 @@ export const SettingsScreen: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isResetting, setIsResetting] = useState(false);
 
   // Charger les profils à chaque fois que l'écran est affiché
   useFocusEffect(
@@ -123,13 +126,30 @@ export const SettingsScreen: React.FC = () => {
           style: "destructive",
           onPress: async () => {
             try {
+              // Afficher l'écran de chargement
+              setIsResetting(true);
+              
+              // Vider le stockage
               await StorageUtils.clearAllStorage();
+              
+              // Recharger les podcasts depuis la bibliothèque par défaut
+              await PodcastService.initializeDefaultPodcasts();
+              
+              // Masquer l'écran de chargement
+              setIsResetting(false);
+              
+              // Afficher un message de succès
               setSuccessMessage('Stockage vidé avec succès');
               setShowSuccessToast(true);
+              
               // Recharger les profils
               setProfiles([]);
+              
+              // Rediriger vers l'écran de présentation
+              navigation.navigate('Presentation');
             } catch (error) {
               console.error('Erreur lors du vidage du stockage:', error);
+              setIsResetting(false);
               Alert.alert("Erreur", "Une erreur est survenue lors du vidage du stockage.");
             }
           }
@@ -143,22 +163,38 @@ export const SettingsScreen: React.FC = () => {
     title: string, 
     onPress: () => void, 
     isLast: boolean = false,
-    isDestructive: boolean = false
+    isDestructive: boolean = false,
+    disabled: boolean = false
   ) => (
     <TouchableOpacity 
       style={[
         styles.settingItem, 
-        isLast ? styles.lastItem : {}
+        isLast ? styles.lastItem : {},
+        disabled ? styles.disabledItem : {}
       ]} 
       onPress={onPress}
+      disabled={disabled}
     >
       <Typography 
         variant="body" 
-        style={isDestructive ? { color: '#FF3B30' } : {}}
+        style={[
+          isDestructive ? { color: '#FF3B30' } : {},
+          disabled ? { color: 'rgba(255, 255, 255, 0.3)' } : {}
+        ]}
       >
         {title}
       </Typography>
-      <Ionicons name="chevron-forward" size={24} color={isDestructive ? '#FF3B30' : COLORS.text} />
+      <Ionicons 
+        name="chevron-forward" 
+        size={24} 
+        color={
+          isDestructive 
+            ? '#FF3B30' 
+            : disabled 
+              ? 'rgba(255, 255, 255, 0.3)' 
+              : COLORS.text
+        } 
+      />
     </TouchableOpacity>
   );
 
@@ -175,66 +211,72 @@ export const SettingsScreen: React.FC = () => {
         onHide={() => setShowSuccessToast(false)} 
       />
       
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <Typography variant="title" center>Paramètres</Typography>
-        <View style={styles.placeholder} />
-      </View>
+      {isResetting ? (
+        <LoadingScreen message="Réinitialisation de l'application" />
+      ) : (
+        <>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+              <Ionicons name="chevron-back" size={24} color={COLORS.text} />
+            </TouchableOpacity>
+            <Typography variant="title" center>Paramètres</Typography>
+            <View style={styles.placeholder} />
+          </View>
 
-      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.content}>
-          {profiles.length > 0 && (
-            <Button
-              title="Accéder à l'application"
-              onPress={handleAccessApp}
-              fullWidth
-              style={styles.accessAppButton}
-            />
-          )}
-          
-          <View style={styles.section}>
-            <Typography variant="subtitle" style={styles.sectionTitle}>
-              Gérer les profils
-            </Typography>
-            
-            {profiles.length > 0 ? (
-              <FlatList
-                data={profiles}
-                renderItem={renderProfileItem}
-                keyExtractor={(item) => item.id}
-                scrollEnabled={false}
-              />
-            ) : (
-              <View style={styles.emptyProfilesContainer}>
-                <Typography variant="body" center style={styles.emptyProfilesText}>
-                  Aucun profil créé
+          <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+            <View style={styles.content}>
+              {profiles.length > 0 && (
+                <Button
+                  title="Accéder à l'application"
+                  onPress={handleAccessApp}
+                  fullWidth
+                  style={styles.accessAppButton}
+                />
+              )}
+              
+              <View style={styles.section}>
+                <Typography variant="subtitle" style={styles.sectionTitle}>
+                  Gérer les profils
                 </Typography>
+                
+                {profiles.length > 0 ? (
+                  <FlatList
+                    data={profiles}
+                    renderItem={renderProfileItem}
+                    keyExtractor={(item) => item.id}
+                    scrollEnabled={false}
+                  />
+                ) : (
+                  <View style={styles.emptyProfilesContainer}>
+                    <Typography variant="body" center style={styles.emptyProfilesText}>
+                      Aucun profil créé
+                    </Typography>
+                  </View>
+                )}
+                
+                {renderSettingItem('Ajouter un profil', handleAddProfile, false, false, profiles.length > 0)}
               </View>
-            )}
-            
-            {renderSettingItem('Ajouter un profil', handleAddProfile)}
-          </View>
 
-          <View style={styles.section}>
-            {renderSettingItem('Modifier le code pin', handleModifyPin)}
-          </View>
+              <View style={styles.section}>
+                {renderSettingItem('Modifier le code pin', handleModifyPin)}
+              </View>
 
-          <View style={styles.section}>
-            {renderSettingItem('Ajouter un podcast', handleAddPodcast)}
-            {renderSettingItem('Modifier un podcast', handleEditPodcast)}
-          </View>
+              <View style={styles.section}>
+                {renderSettingItem('Ajouter un podcast', handleAddPodcast)}
+                {renderSettingItem('Modifier un podcast', handleEditPodcast)}
+              </View>
 
-          <View style={styles.section}>
-            {renderSettingItem('Importer/Exporter des paramètres', () => console.log('Importer/Exporter des paramètres'))}
-          </View>
+              <View style={styles.section}>
+                {renderSettingItem('Importer/Exporter des paramètres', () => console.log('Importer/Exporter des paramètres'))}
+              </View>
 
-          <View style={styles.section}>
-            {renderSettingItem('Vider le stockage', handleClearStorage, true, true)}
-          </View>
-        </View>
-      </ScrollView>
+              <View style={styles.section}>
+                {renderSettingItem('Vider le stockage', handleClearStorage, true, true)}
+              </View>
+            </View>
+          </ScrollView>
+        </>
+      )}
     </SafeAreaView>
   );
 };
@@ -284,6 +326,9 @@ const styles = StyleSheet.create({
   },
   lastItem: {
     borderBottomWidth: 0,
+  },
+  disabledItem: {
+    opacity: 0.7,
   },
   footer: {
     alignItems: 'center',

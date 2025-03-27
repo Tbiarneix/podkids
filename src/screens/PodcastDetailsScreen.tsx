@@ -104,6 +104,23 @@ export const PodcastDetailsScreen: React.FC = () => {
     playEpisode(episode, podcast);
   };
 
+  const handleToggleSubscription = async () => {
+    if (!podcast) return;
+    
+    try {
+      const updatedPodcast = await PodcastService.updatePodcast(
+        podcast.id,
+        { subscription: !podcast.subscription }
+      );
+      
+      if (updatedPodcast) {
+        setPodcast(updatedPodcast);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de l\'abonnement:', error);
+    }
+  };
+
   const formatDuration = (duration: number): string => {
     const minutes = Math.floor(duration / 60);
     const seconds = duration % 60;
@@ -194,6 +211,7 @@ export const PodcastDetailsScreen: React.FC = () => {
               styles.subscriptionButton, 
               podcast.subscription ? styles.subscribedButton : {}
             ]}
+            onPress={handleToggleSubscription}
           >
             <Typography 
               variant="caption" 

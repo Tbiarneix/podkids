@@ -1,0 +1,170 @@
+[
+  {
+    "name": "Les aventures de Toudou",
+    "author": "France Inter",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_23713.xml",
+    "AgeRange": ["UNDER_3"],
+    "PodcastType": ["STORIES", "PERSONAL_DEVELOPMENT"],
+    "deleteable": false
+  },
+  {
+    "name": "Les aventures d'Octave et Melo",
+    "author": "France Musique",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_23119.xml",
+    "AgeRange": ["UNDER_3", "BETWEEN_4_AND_6"],
+    "PodcastType": ["STORIES", "MUSIC"],
+    "deleteable": false
+  },
+  {
+    "name": "Les Histoires du pince-oreille",
+    "author": "France Culture",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_20977.xml",
+    "AgeRange": ["BETWEEN_4_AND_6"],
+    "PodcastType": ["STORIES"],
+    "deleteable": false
+  },
+  {
+    "name": "Les Contes de la Maison Ronde",
+    "author": "France Inter",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_22940.xml",
+    "AgeRange": ["BETWEEN_4_AND_6", "BETWEEN_7_AND_9"],
+    "PodcastType": ["STORIES", "MUSIC"],
+    "deleteable": false
+  },
+  {
+    "name": "Une histoire et... Oli",
+    "author": "France Inter",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_19721.xml",
+    "AgeRange": ["BETWEEN_4_AND_6", "BETWEEN_7_AND_9"],
+    "PodcastType": ["STORIES"],
+    "deleteable": false
+  },
+  {
+    "name": "Bestioles",
+    "author": "France Inter",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_22046.xml",
+    "AgeRange": ["BETWEEN_4_AND_6", "BETWEEN_7_AND_9"],
+    "PodcastType": ["SCIENCE", "NATURE"],
+    "deleteable": false
+  },
+  {
+    "name": "Les Zinstrus",
+    "author": "France Musique",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_22142.xml",
+    "AgeRange": ["BETWEEN_4_AND_6", "BETWEEN_7_AND_9"],
+    "PodcastType": ["MUSIC"],
+    "deleteable": false
+  },
+  {
+    "name": "Olma",
+    "author": "France Inter",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_21770.xml",
+    "AgeRange": ["BETWEEN_4_AND_6","BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["SCIENCE"],
+    "deleteable": false
+  },
+  {
+    "name": "Les Odyssées",
+    "author": "France Inter",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_20108.xml",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["HISTORY", "ADVENTURE", "HEROES"],
+    "deleteable": false
+  },
+  {
+    "name": "Salut l'info !",
+    "author": "France Info et Astrapi",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_20689.xml",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["ACTU"],
+    "deleteable": false
+  },
+  {
+    "name": "L'Amérique pour les kids",
+    "author": "France Inter",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_21797.xml",
+    "AgeRange": ["BETWEEN_10_AND_12", "BETWEEN_13_AND_15"],
+    "PodcastType": ["ACTU"],
+    "deleteable": false
+  },
+  {
+    "name": "Les Mondes de Chloé : à la belle étoile",
+    "author": "France Culture",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_23313.xml",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["SCIENCE", "ADVENTURE"],
+    "deleteable": false
+  },
+  {
+    "name": "Tina et le trésor de Néfertiti",
+    "author": "France Inter",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_25406.xml",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["STORIES", "ADVENTURE", "HEROES"],
+    "deleteable": false
+  },
+  {
+    "name": "Les P'tits Bateaux",
+    "author": "France Inter",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_10137.xml",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["SCIENCE"],
+    "deleteable": false
+  },
+  {
+    "name": "L’odyssée de Musky",
+    "author": "France Bleu",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_23007.xml",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["NATURE", "SPORT"],
+    "deleteable": false
+  },
+  {
+    "name": "Président c'est comment ?",
+    "author": "France Inter",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_23033.xml",
+    "AgeRange": ["BETWEEN_7_AND_9", "BETWEEN_10_AND_12"],
+    "PodcastType": ["ACTU"],
+    "deleteable": false
+  },
+  {
+    "name": "Frissons",
+    "author": "France Inter",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_10137.xml",
+    "AgeRange": ["BETWEEN_10_AND_12", "BETWEEN_13_AND_15", "OVER_15"],
+    "PodcastType": ["STORIES", "ADVENTURE" ],
+    "deleteable": false
+  },
+  {
+    "name": "La Régence en musique, que la fête commence !",
+    "author": "France Musique",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_10137.xml",
+    "AgeRange": ["BETWEEN_13_AND_15", "OVER_15"],
+    "PodcastType": ["HISTORY", "MUSIC"],
+    "deleteable": false
+  },
+  {
+    "name": "Le journal intime de...",
+    "author": "France Musique",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_21815.xml",
+    "AgeRange": ["BETWEEN_10_AND_12","BETWEEN_13_AND_15", "OVER_15"],
+    "PodcastType": ["HISTORY", "HEROES"],
+    "deleteable": false
+  },
+  {
+    "name": "Mars, la nouvelle odyssée",
+    "author": "France Info",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_21997.xml",
+    "AgeRange": ["BETWEEN_13_AND_15", "OVER_15"],
+    "PodcastType": ["SCIENCE"],
+    "deleteable": false
+  },
+  {
+    "name": "Le vrai ou faux junior",
+    "author": "France Info",
+    "url": "https://radiofrance-podcast.net/podcast09/rss_22882.xml",
+    "AgeRange": ["BETWEEN_13_AND_15", "OVER_15"],
+    "PodcastType": ["ACTU"],
+    "deleteable": false
+  }
+]

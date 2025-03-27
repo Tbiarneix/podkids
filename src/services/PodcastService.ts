@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RssParserService, RssFeed, RssFeedItem } from './RssParserService';
 import { Podcast, Episode, PodcastType, AgeRange, EpisodeStatus } from '../types/podcast';
 import { convertDurationToSeconds } from '../utils/timeUtils';
+import libraryData from '../data/library.json';
 
 const PODCASTS_STORAGE_KEY = '@podkids:podcasts';
 
@@ -132,6 +133,7 @@ export class PodcastService {
         types: podcastTypes,
         ageRanges: ageRanges,
         subscription: false,
+        deleteable: true, // Les podcasts ajoutés par l'utilisateur sont toujours supprimables
         episodes: feed.items.map((item: RssFeedItem) => ({
           id: generateUniqueId(),
           name: item.title || 'Épisode sans titre',
@@ -391,6 +393,114 @@ export class PodcastService {
     } catch (error) {
       console.error('Erreur lors de la récupération des podcasts favoris:', error);
       return [];
+    }
+  }
+
+  /**
+   * Vérifie si la bibliothèque de podcasts est vide et la remplit avec les podcasts par défaut si nécessaire
+   * @returns true si la bibliothèque a été initialisée, false si elle contenait déjà des podcasts
+   */
+  static async initializeDefaultPodcasts(): Promise<boolean> {
+    try {
+      // Vérifier si des podcasts existent déjà
+      const podcasts = await this.getPodcasts();
+      if (podcasts.length > 0) {
+        console.log('La bibliothèque de podcasts contient déjà des podcasts, pas d\'initialisation nécessaire');
+        return false;
+      }
+
+      console.log('Initialisation de la bibliothèque de podcasts avec les podcasts par défaut...');
+      
+      // Parcourir les données de la bibliothèque et ajouter chaque podcast
+      const addedPodcasts: Podcast[] = [];
+      const errors: string[] = [];
+
+      // Traiter chaque podcast dans la bibliothèque
+      for (const podcastData of libraryData) {
+        try {
+          // Convertir les tranches d'âge du format JSON en enum AgeRange
+          const ageRanges: AgeRange[] = [];
+          for (const ageRangeKey of podcastData.AgeRange) {
+            // Convertir la clé de l'enum en valeur de l'enum
+            if (ageRangeKey in AgeRange) {
+              ageRanges.push(AgeRange[ageRangeKey as keyof typeof AgeRange]);
+            } else {
+              console.warn(`Tranche d'âge inconnue: ${ageRangeKey}`);
+            }
+          }
+
+          if (ageRanges.length === 0) {
+            console.warn(`Aucune tranche d'âge valide pour le podcast: ${podcastData.name}`);
+            continue;
+          }
+
+          // Convertir les types de podcast du format JSON en enum PodcastType
+          const podcastTypes: PodcastType[] = [];
+          for (const typeKey of podcastData.PodcastType) {
+            // Vérifier si la clé existe dans l'enum PodcastType
+            if (typeKey in PodcastType) {
+              // Utiliser la clé pour accéder à l'enum directement
+              podcastTypes.push(PodcastType[typeKey as keyof typeof PodcastType]);
+            } else {
+              console.warn(`Type de podcast inconnu: ${typeKey}`);
+            }
+          }
+
+          if (podcastTypes.length === 0) {
+            console.warn(`Aucun type de podcast valide pour le podcast: ${podcastData.name}`);
+            continue;
+          }
+
+          // Récupérer le flux RSS
+          const feed = await this.fetchRssFeed(podcastData.url);
+          
+          // Créer le nouveau podcast
+          const newPodcast: Podcast = {
+            id: generateUniqueId(),
+            name: podcastData.name || feed.title || 'Podcast sans titre',
+            description: feed.description || '',
+            cover: feed.imageUrl || feed.itunesImage || '',
+            url: podcastData.url,
+            author: podcastData.author || feed.itunesOwnerName || feed.itunesAuthor || 'Auteur inconnu',
+            types: podcastTypes,
+            ageRanges: ageRanges,
+            subscription: false,
+            deleteable: podcastData.deleteable !== undefined ? podcastData.deleteable : true,
+            episodes: feed.items.map((item: RssFeedItem) => ({
+              id: generateUniqueId(),
+              name: item.title || 'Épisode sans titre',
+              description: item.description || item.contentEncoded || item.content || '',
+              cover: item.itunesImage || feed.imageUrl || feed.itunesImage || '',
+              url: item.enclosureUrl || '',
+              duration: convertDurationToSeconds(item.itunesDuration),
+              status: EpisodeStatus.TO_LISTEN,
+              timestamp: 0,
+              publicationDate: item.pubDate ? new Date(item.pubDate).getTime() : Date.now()
+            }))
+          };
+          
+          // Ajouter le nouveau podcast à la liste
+          addedPodcasts.push(newPodcast);
+          
+          // Enregistrer chaque podcast immédiatement pour éviter de perdre tout le travail en cas d'erreur
+          const currentPodcasts = await this.getPodcasts();
+          currentPodcasts.push(newPodcast);
+          await AsyncStorage.setItem(PODCASTS_STORAGE_KEY, JSON.stringify(currentPodcasts));
+          
+          console.log(`Podcast ajouté: ${newPodcast.name} (${podcastData.url})`);
+        } catch (error) {
+          // Ignorer les erreurs individuelles pour continuer avec les autres podcasts
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`Erreur lors de l'ajout du podcast ${podcastData.name || podcastData.url}: ${errorMessage}`);
+          errors.push(`${podcastData.name || podcastData.url}: ${errorMessage}`);
+        }
+      }
+
+      console.log(`Initialisation terminée. ${addedPodcasts.length} podcasts ajoutés, ${errors.length} erreurs.`);
+      return true;
+    } catch (error) {
+      console.error('Erreur lors de l\'initialisation des podcasts par défaut:', error);
+      return false;
     }
   }
 }

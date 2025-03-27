@@ -88,23 +88,24 @@ export const ThemePodcastsScreen: React.FC = () => {
 
   const toggleSubscription = async (podcastId: string) => {
     try {
-      // Mettre à jour l'abonnement au podcast
-      // Cette fonction n'existe pas encore, nous allons juste simuler le changement
-      // en modifiant localement la liste des podcasts
-      const updatedPodcasts = podcasts.map(podcast => {
-        if (podcast.id === podcastId) {
-          return {
-            ...podcast,
-            subscription: !podcast.subscription
-          };
-        }
-        return podcast;
-      });
+      // Récupérer le podcast actuel
+      const podcast = podcasts.find(p => p.id === podcastId);
+      if (!podcast) return;
       
-      setPodcasts(updatedPodcasts);
+      // Mettre à jour l'abonnement au podcast dans le stockage persistant
+      const updatedPodcast = await PodcastService.updatePodcast(
+        podcastId,
+        { subscription: !podcast.subscription }
+      );
       
-      // Dans une implémentation réelle, nous appellerions le service comme ceci:
-      // await PodcastService.togglePodcastSubscription(podcastId);
+      if (updatedPodcast) {
+        // Mettre à jour l'état local avec le podcast mis à jour
+        const updatedPodcasts = podcasts.map(p => 
+          p.id === podcastId ? updatedPodcast : p
+        );
+        
+        setPodcasts(updatedPodcasts);
+      }
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l\'abonnement:', error);
     }

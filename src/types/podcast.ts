@@ -6,7 +6,7 @@ export enum EpisodeStatus {
 
 export enum PodcastType {
   STORIES = "Histoires et Contes",
-  HISTORIES = "Histoire",
+  HISTORY = "Histoire",
   MUSIC = "Musiques et Comptines",
   NATURE = "Natures et Animaux",
   SCIENCE = "Science et Esprit critique",
@@ -19,17 +19,18 @@ export enum PodcastType {
   TRAVEL = "Voyages et Découvertes",
   LANGUAGES = "Langues et Cultures étrangères",
   GAMES = "Jeux et divertissement",
-  HEROES = "Héros et Légendes"
+  HEROES = "Héros et Légendes",
+  ACTU = "Actualités et Informations"
 }
 
 export enum PodcastTypeDescription {
   STORIES = "Contes de fées, histoires classiques, récits imaginaires et contes pour le coucher",
-  HISTORIES = "Contenus éducatifs sur l'histoire",
+  HISTORY = "Contenus éducatifs sur l'histoire",
   MUSIC = "Chansons pour enfants, comptines et apprentissage de la musique",
   NATURE = "Histoires sur les animaux, les plantes, l'écologie et les aventures dans la nature",
   SCIENCE = "Explications simplifiées des concepts scientifiques, expériences amusantes et découvertes fascinantes",
   ADVENTURE = "Histoires d'aventures, de détectives, de mystères et d'explorations",
-  CULTURE = "Documentaires sur les différentes cultures, traditions, fêtes et coutumes du monde entier",
+  CULTURE = "Documentaires sur la culture générale, les différentes cultures, traditions, fêtes et coutumes du monde entier",
   PERSONAL_DEVELOPMENT = "Discussions sur les émotions, la confiance en soi, l'amitié et la gestion des conflits",
   ART = "Activités créatives, arts plastiques, bricolage, et histoires inspirantes sur des artistes",
   SPORT = "Présentation de différents sports, conseils pour rester actif et histoires inspirantes d'athlètes jeunes",
@@ -37,7 +38,8 @@ export enum PodcastTypeDescription {
   TRAVEL = "Récits de voyages, découvertes de pays et cultures, cartes géographiques et curiosités du monde",
   LANGUAGES = "Apprentissage de nouvelles langues, contes et histoires en langues étrangères, et exploration des cultures du monde entier",
   GAMES = "Discussions sur les jeux de société, les jeux vidéo adaptés aux enfants et les activités de récréation et loisirs",
-  HEROES = "Histoires de héros célèbres, légendes mythologiques, super-héros et personnages historiques inspirants"
+  HEROES = "Histoires de héros célèbres, légendes mythologiques, super-héros et personnages historiques inspirants",
+  ACTU = "Pour mieux comprendre et décortiquer les actualités et les informations du quotidien"
 }
 
 export enum AgeRange {
@@ -72,4 +74,5 @@ export interface Podcast {
   ageRanges: AgeRange[];
   subscription: boolean;
   episodes: Episode[];
+  deleteable: boolean;
 }

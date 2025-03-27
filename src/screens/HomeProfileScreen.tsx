@@ -43,6 +43,7 @@ export const HomeProfileScreen: React.FC = () => {
   const [listeningEpisodes, setListeningEpisodes] = useState<ContinueListeningEpisode[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
+  const [podcastTypeWithContent, setPodcastTypeWithContent] = useState<PodcastType[]>([]);
   
   // Créer un tableau des types de podcasts pour la section "Découvrir"
   const podcastTypeEntries = Object.entries(PodcastType).map(([key, value]) => ({
@@ -95,6 +96,19 @@ export const HomeProfileScreen: React.FC = () => {
         }).slice(0, 5);
         
         setListeningEpisodes(filteredEpisodes);
+
+        // Déterminer quels types de podcasts ont du contenu
+        const typesWithContent: PodcastType[] = [];
+        
+        // Pour chaque type de podcast, vérifier s'il existe au moins un podcast de ce type
+        for (const type of Object.values(PodcastType)) {
+          const podcastsOfType = await PodcastService.getPodcastsByType(type);
+          if (podcastsOfType.length > 0) {
+            typesWithContent.push(type);
+          }
+        }
+        
+        setPodcastTypeWithContent(typesWithContent);
       } catch (error) {
         console.error('Erreur lors du chargement des épisodes en cours d\'écoute:', error);
       } finally {
@@ -238,20 +252,22 @@ export const HomeProfileScreen: React.FC = () => {
           </Typography>
           
           <View style={styles.discoverContainer}>
-            {podcastTypeEntries.map((entry) => (
-              <TouchableOpacity 
-                key={entry.key}
-                style={styles.discoverItem}
-                onPress={() => handleDiscoverPress(entry.type)}
-              >
-                <Typography variant="subtitle" style={styles.discoverItemTitle}>
-                  {entry.type}
-                </Typography>
-                <Typography variant="caption" style={styles.discoverItemDescription}>
-                  {entry.description}
-                </Typography>
-              </TouchableOpacity>
-            ))}
+            {podcastTypeEntries
+              .filter(entry => podcastTypeWithContent.includes(entry.type))
+              .map((entry) => (
+                <TouchableOpacity 
+                  key={entry.key}
+                  style={styles.discoverItem}
+                  onPress={() => handleDiscoverPress(entry.type)}
+                >
+                  <Typography variant="subtitle" style={styles.discoverItemTitle}>
+                    {entry.type}
+                  </Typography>
+                  <Typography variant="caption" style={styles.discoverItemDescription}>
+                    {entry.description}
+                  </Typography>
+                </TouchableOpacity>
+              ))}
           </View>
         </View>
       </ScrollView>

@@ -32,9 +32,11 @@ import { COLORS } from './src/utils/theme';
 import { RootStackParamList } from './src/types/navigation';
 import { ProfileService } from './src/services/ProfileService';
 import { PinService } from './src/services/PinService';
+import { PodcastService } from './src/services/PodcastService';
 import { PlayerProvider } from './src/contexts/PlayerContext';
 import { PlayerBar } from './src/components/PlayerBar';
 import { usePlayer } from './src/contexts/PlayerContext';
+import { LoadingScreen } from './src/components/LoadingScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -55,6 +57,9 @@ function MainApp() {
   useEffect(() => {
     const checkAppState = async () => {
       try {
+        // Initialiser la bibliothèque de podcasts par défaut si nécessaire
+        await PodcastService.initializeDefaultPodcasts();
+        
         // Vérifier si un code PIN est configuré
         const isPinConfigured = await PinService.isPinConfigured();
         
@@ -88,11 +93,7 @@ function MainApp() {
   const playerBarHeight = 70; // Hauteur du PlayerBar en pixels
 
   if (!fontsLoaded || initializing) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   return (
@@ -217,5 +218,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: COLORS.background,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: 10,
+  },
+  appName: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    marginBottom: 20,
+    fontFamily: 'Rubik_700Bold',
+  },
+  loadingText: {
+    marginTop: 20,
+    fontSize: 16,
+    color: COLORS.text,
+    fontFamily: 'Rubik_400Regular',
   },
 });
