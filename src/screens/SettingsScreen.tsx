@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, Alert, ScrollView, Modal } from 'react-native';
 import { Typography } from '../components/Typography';
-import { Toast } from '../components/Toast';
-import { ProfileItem } from '../components/ProfileItem';
 import { Button } from '../components/Button';
+import { ProfileItem } from '../components/ProfileItem';
 import { COLORS, SPACING } from '../utils/theme';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -14,6 +13,7 @@ import { PodcastService } from '../services/PodcastService';
 import { Profile } from '../types/profile';
 import { StorageUtils } from '../utils/StorageUtils';
 import { LoadingScreen } from '../components/LoadingScreen';
+import { useToast } from '../contexts/ToastContext';
 
 type SettingsScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -22,8 +22,7 @@ type SettingsScreenNavigationProp = NativeStackNavigationProp<
 
 export const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
-  const [showSuccessToast, setShowSuccessToast] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
+  const { showToast } = useToast();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [isResetting, setIsResetting] = useState(false);
@@ -49,29 +48,25 @@ export const SettingsScreen: React.FC = () => {
       const params = navigation.getState().routes.find(r => r.name === 'Settings')?.params;
       if (params) {
         if ('profileCreated' in params && params.profileCreated) {
-          setSuccessMessage('Le profil a bien été créé !');
-          setShowSuccessToast(true);
+          showToast('Le profil a bien été créé !', 'success');
           
           // Réinitialiser le paramètre
           navigation.setParams({ profileCreated: undefined });
         } 
         else if ('podcastAdded' in params && params.podcastAdded) {
-          setSuccessMessage('Le podcast a bien été ajouté !');
-          setShowSuccessToast(true);
+          showToast('Le podcast a bien été ajouté !', 'success');
           
           // Réinitialiser le paramètre
           navigation.setParams({ podcastAdded: undefined });
         }
         else if ('podcastUpdated' in params && params.podcastUpdated) {
-          setSuccessMessage('Le podcast a bien été mis à jour !');
-          setShowSuccessToast(true);
+          showToast('Le podcast a bien été mis à jour !', 'success');
           
           // Réinitialiser le paramètre
           navigation.setParams({ podcastUpdated: undefined });
         }
         else if ('podcastDeleted' in params && params.podcastDeleted) {
-          setSuccessMessage('Le podcast a bien été supprimé !');
-          setShowSuccessToast(true);
+          showToast('Le podcast a bien été supprimé !', 'success');
           
           // Réinitialiser le paramètre
           navigation.setParams({ podcastDeleted: undefined });
@@ -139,8 +134,7 @@ export const SettingsScreen: React.FC = () => {
               setIsResetting(false);
               
               // Afficher un message de succès
-              setSuccessMessage('Stockage vidé avec succès');
-              setShowSuccessToast(true);
+              showToast('Stockage vidé avec succès', 'success');
               
               // Recharger les profils
               setProfiles([]);
@@ -204,13 +198,6 @@ export const SettingsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Toast 
-        type="success" 
-        message={successMessage} 
-        visible={showSuccessToast} 
-        onHide={() => setShowSuccessToast(false)} 
-      />
-      
       {isResetting ? (
         <LoadingScreen message="Réinitialisation de l'application" />
       ) : (

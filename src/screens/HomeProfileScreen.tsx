@@ -136,7 +136,9 @@ export const HomeProfileScreen: React.FC = () => {
 
   const handlePlaylistsPress = () => {
     // Navigation vers les playlists
-    console.log('Navigation vers les playlists');
+    navigation.navigate('Playlists', {
+      profileId: profileId || ''
+    });
   };
 
   const handleDiscoverPress = (podcastType: PodcastType) => {

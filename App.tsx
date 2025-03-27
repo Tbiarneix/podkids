@@ -28,12 +28,15 @@ import { EditPodcastScreen } from './src/screens/EditPodcastScreen';
 import { PodcastDetailsScreen } from './src/screens/PodcastDetailsScreen';
 import { EpisodeDetailsScreen } from './src/screens/EpisodeDetailsScreen';
 import { LibraryScreen } from './src/screens/LibraryScreen';
+import { PlaylistScreen } from './src/screens/PlaylistScreen';
+import { PlaylistDetailsScreen } from './src/screens/PlaylistDetailsScreen';
 import { COLORS } from './src/utils/theme';
 import { RootStackParamList } from './src/types/navigation';
 import { ProfileService } from './src/services/ProfileService';
 import { PinService } from './src/services/PinService';
 import { PodcastService } from './src/services/PodcastService';
 import { PlayerProvider } from './src/contexts/PlayerContext';
+import { ToastProvider } from './src/contexts/ToastContext';
 import { PlayerBar } from './src/components/PlayerBar';
 import { usePlayer } from './src/contexts/PlayerContext';
 import { LoadingScreen } from './src/components/LoadingScreen';
@@ -191,6 +194,14 @@ function MainApp() {
           name="Library" 
           component={LibraryScreen} 
         />
+        <Stack.Screen 
+          name="Playlists" 
+          component={PlaylistScreen} 
+        />
+        <Stack.Screen 
+          name="PlaylistDetails" 
+          component={PlaylistDetailsScreen} 
+        />
       </Stack.Navigator>
       
       {isPlayerVisible && currentEpisode && currentPodcast && (
@@ -207,7 +218,9 @@ function MainApp() {
 export default function App() {
   return (
     <PlayerProvider>
-      <MainApp />
+      <ToastProvider>
+        <MainApp />
+      </ToastProvider>
     </PlayerProvider>
   );
 }

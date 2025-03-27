@@ -3,21 +3,20 @@ import { View, StyleSheet, SafeAreaView, TouchableOpacity, KeyboardAvoidingView,
 import { Typography } from '../components/Typography';
 import { Button } from '../components/Button';
 import { PinInput, PinInputRef } from '../components/PinInput';
-import { Toast } from '../components/Toast';
+import { useToast } from '../contexts/ToastContext';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '../utils/theme';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { PinService } from '../services/PinService';
 
 export const ModifyPinScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { showToast } = useToast();
+
   const [oldPin, setOldPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [step, setStep] = useState<'old' | 'new' | 'confirm'>('old');
-  const [showErrorToast, setShowErrorToast] = useState(false);
-  const [showSuccessToast, setShowSuccessToast] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
   
   // Références pour les champs de saisie
   const oldPinRef = useRef<PinInputRef>(null);
@@ -65,8 +64,7 @@ export const ModifyPinScreen: React.FC = () => {
 
   const verifyOldPin = async () => {
     if (oldPin.length !== 5) {
-      setErrorMessage('Veuillez entrer un code PIN à 5 chiffres');
-      setShowErrorToast(true);
+      showToast('Veuillez entrer un code PIN à 5 chiffres', 'error');
       return;
     }
 
@@ -77,22 +75,19 @@ export const ModifyPinScreen: React.FC = () => {
         // PIN correct, passer à l'étape suivante
         setStep('new');
       } else {
-        setErrorMessage('Le code PIN actuel est incorrect');
-        setShowErrorToast(true);
+        showToast('Le code PIN actuel est incorrect', 'error');
         setOldPin('');
       }
     } catch (e) {
       console.error('Erreur lors de la vérification du PIN:', e);
-      setErrorMessage('Erreur lors de la vérification. Veuillez réessayer.');
-      setShowErrorToast(true);
+      showToast('Erreur lors de la vérification. Veuillez réessayer.', 'error');
       setOldPin('');
     }
   };
 
   const handleNextToConfirm = () => {
     if (newPin.length !== 5) {
-      setErrorMessage('Veuillez entrer un code PIN à 5 chiffres');
-      setShowErrorToast(true);
+      showToast('Veuillez entrer un code PIN à 5 chiffres', 'error');
       return;
     }
     setStep('confirm');
@@ -100,14 +95,12 @@ export const ModifyPinScreen: React.FC = () => {
 
   const handleSave = async () => {
     if (confirmPin.length !== 5) {
-      setErrorMessage('Veuillez confirmer votre code PIN');
-      setShowErrorToast(true);
+      showToast('Veuillez confirmer votre code PIN', 'error');
       return;
     }
     
     if (newPin !== confirmPin) {
-      setErrorMessage('Les codes PIN ne correspondent pas !');
-      setShowErrorToast(true);
+      showToast('Les codes PIN ne correspondent pas !', 'error');
       setConfirmPin('');
       return;
     }
@@ -117,7 +110,7 @@ export const ModifyPinScreen: React.FC = () => {
       await PinService.storePin(newPin);
       
       // Afficher le toast de succès
-      setShowSuccessToast(true);
+      showToast('Le code PIN a bien été mis à jour !', 'success');
       
       // Retourner à l'écran précédent après un délai
       setTimeout(() => {
@@ -125,8 +118,7 @@ export const ModifyPinScreen: React.FC = () => {
       }, 2000);
     } catch (e) {
       console.error('Erreur lors du stockage du PIN:', e);
-      setErrorMessage('Erreur lors de la mise à jour du PIN. Veuillez réessayer.');
-      setShowErrorToast(true);
+      showToast('Erreur lors de la mise à jour du PIN. Veuillez réessayer.', 'error');
     }
   };
 
@@ -197,20 +189,6 @@ export const ModifyPinScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Toast 
-        type="error" 
-        message={errorMessage} 
-        visible={showErrorToast} 
-        onHide={() => setShowErrorToast(false)} 
-      />
-      
-      <Toast 
-        type="success" 
-        message="Le code PIN a bien été mis à jour !" 
-        visible={showSuccessToast} 
-        onHide={() => setShowSuccessToast(false)} 
-      />
-      
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />

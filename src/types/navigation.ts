@@ -28,4 +28,6 @@ export type RootStackParamList = {
     podcastName: string 
   };
   Library: { profileId: string };
+  Playlists: { profileId: string };
+  PlaylistDetails: { playlistId: string };
 };

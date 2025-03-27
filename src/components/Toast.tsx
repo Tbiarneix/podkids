@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, StyleSheet, Animated, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONTS } from '../utils/theme';
@@ -20,9 +20,25 @@ export const Toast: React.FC<ToastProps> = ({
 }) => {
   const [animation] = useState(new Animated.Value(0));
   const [isVisible, setIsVisible] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Nettoyage du timer à la destruction du composant
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (visible && !isVisible) {
+      // Annuler tout timer précédent
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      
       // Afficher le toast
       setIsVisible(true);
       Animated.timing(animation, {
@@ -32,18 +48,22 @@ export const Toast: React.FC<ToastProps> = ({
       }).start();
 
       // Configurer le timer pour masquer automatiquement le toast
-      const timer = setTimeout(() => {
+      timerRef.current = setTimeout(() => {
         hideToast();
       }, duration);
-
-      return () => clearTimeout(timer);
     } else if (!visible && isVisible) {
       // Masquer le toast quand visible passe à false
       hideToast();
     }
-  }, [visible, isVisible]);
+  }, [visible, isVisible, duration]);
 
   const hideToast = () => {
+    // Annuler tout timer existant
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    
     Animated.timing(animation, {
       toValue: 0,
       duration: 300,
@@ -92,6 +112,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: SPACING.md,
+    paddingTop: SPACING.md + 30,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

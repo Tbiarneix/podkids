@@ -76,3 +76,10 @@ export interface Podcast {
   episodes: Episode[];
   deleteable: boolean;
 }
+
+export interface Playlist {
+  id: string;
+  name: string;
+  episodes: Episode[];
+  deleteable: boolean;
+}
