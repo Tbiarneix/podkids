@@ -137,6 +137,7 @@ export const LibraryScreen: React.FC = () => {
       onPress={handlePodcastPress}
       onToggleSubscription={toggleSubscription}
       showThemeTag={true}
+      showEpisodeCount={false}
     />
   );
 

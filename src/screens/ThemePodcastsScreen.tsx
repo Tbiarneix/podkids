@@ -117,6 +117,7 @@ export const ThemePodcastsScreen: React.FC = () => {
       onPress={handlePodcastPress}
       onToggleSubscription={toggleSubscription}
       showThemeTag={false}
+      showEpisodeCount={false}
     />
   );
 

@@ -85,9 +85,6 @@ export const PodcastListScreen: React.FC = () => {
         <Typography variant="caption" numberOfLines={1} style={styles.podcastAuthor}>
           {item.author || 'Auteur inconnu'}
         </Typography>
-        <Typography variant="caption" style={styles.episodeCount}>
-          {item.episodes.length} épisodes
-        </Typography>
       </View>
       <Ionicons name="chevron-forward" size={24} color={COLORS.text} />
     </TouchableOpacity>
@@ -243,9 +240,5 @@ const styles = StyleSheet.create({
   },
   podcastAuthor: {
     color: COLORS.textSecondary,
-  },
-  episodeCount: {
-    color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
   },
 });

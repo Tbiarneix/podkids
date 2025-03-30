@@ -39,7 +39,6 @@ import { PlayerProvider } from './src/contexts/PlayerContext';
 import { ToastProvider } from './src/contexts/ToastContext';
 import { PlayerBar } from './src/components/PlayerBar';
 import { usePlayer } from './src/contexts/PlayerContext';
-import { LoadingScreen } from './src/components/LoadingScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -95,8 +94,17 @@ function MainApp() {
   // Définir la hauteur du PlayerBar pour la marge
   const playerBarHeight = 70; // Hauteur du PlayerBar en pixels
 
-  if (!fontsLoaded || initializing) {
-    return <LoadingScreen />;
+  if (!fontsLoaded) {
+    // Afficher un écran vide pendant le chargement des polices
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.background }} />
+    );
+  }
+
+  if (initializing) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.background }} />
+    );
   }
 
   return (

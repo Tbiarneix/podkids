@@ -9,13 +9,15 @@ interface PodcastItemProps {
   onPress: (podcast: Podcast) => void;
   onToggleSubscription: (podcastId: string) => void;
   showThemeTag?: boolean;
+  showEpisodeCount?: boolean;
 }
 
 export const PodcastItem: React.FC<PodcastItemProps> = ({
   podcast,
   onPress,
   onToggleSubscription,
-  showThemeTag = true
+  showThemeTag = true,
+  showEpisodeCount = false
 }) => {
   return (
     <TouchableOpacity 
@@ -33,9 +35,13 @@ export const PodcastItem: React.FC<PodcastItemProps> = ({
         <Typography variant="caption" numberOfLines={1} style={styles.podcastAuthor}>
           {podcast.author || 'Auteur inconnu'}
         </Typography>
-        <Typography variant="caption" style={styles.episodeCount}>
-          {podcast.episodes.length} épisodes
-        </Typography>
+        
+        {showEpisodeCount && (
+          <Typography variant="caption" style={styles.episodeCount}>
+            {podcast.episodes.length} épisodes
+          </Typography>
+        )}
+        
         <View style={styles.tagsContainer}>
           <TouchableOpacity 
             style={[
