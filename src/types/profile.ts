@@ -14,3 +14,11 @@ export interface ProfileFormData {
   avatar: number;
   ageRanges: AgeRange[];
 }
+
+export interface ActiveProfileContextType {
+  activeProfile: Profile | null;
+  setActiveProfile: (profile: Profile | null) => void;
+  loadProfile: (profileId: string) => Promise<void>;
+  clearActiveProfile: () => void;
+  isLoading: boolean;
+}

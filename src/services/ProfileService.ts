@@ -1,16 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { v4 as uuidv4 } from 'uuid';
 import { Profile, ProfileFormData } from '../types/profile';
 
-const PROFILES_STORAGE_KEY = 'PROFILES';
-
-// Fonction pour générer un ID unique simple
-const generateUniqueId = (): string => {
-  return Date.now().toString(36) + Math.random().toString(36).substring(2);
-};
+// Clé pour stocker les profils dans AsyncStorage
+const PROFILES_STORAGE_KEY = 'profiles';
 
 export class ProfileService {
   /**
-   * Récupère tous les profils stockés
+   * Récupère tous les profils
    */
   static async getProfiles(): Promise<Profile[]> {
     try {
@@ -42,14 +39,11 @@ export class ProfileService {
     try {
       const profiles = await this.getProfiles();
       
-      const now = Date.now();
       const newProfile: Profile = {
-        id: generateUniqueId(),
-        name: profileData.name,
-        avatar: profileData.avatar,
-        ageRanges: profileData.ageRanges,
-        createdAt: now,
-        updatedAt: now
+        id: uuidv4(),
+        ...profileData,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       };
       
       const updatedProfiles = [...profiles, newProfile];
@@ -58,7 +52,7 @@ export class ProfileService {
       return newProfile;
     } catch (error) {
       console.error('Erreur lors de la création du profil:', error);
-      throw new Error('Impossible de créer le profil');
+      throw error;
     }
   }
 
@@ -71,15 +65,14 @@ export class ProfileService {
       const profileIndex = profiles.findIndex(profile => profile.id === id);
       
       if (profileIndex === -1) {
+        console.error(`Profil avec l'ID ${id} non trouvé`);
         return null;
       }
       
       const updatedProfile: Profile = {
         ...profiles[profileIndex],
-        name: profileData.name ?? profiles[profileIndex].name,
-        avatar: profileData.avatar ?? profiles[profileIndex].avatar,
-        ageRanges: profileData.ageRanges ?? profiles[profileIndex].ageRanges,
-        updatedAt: Date.now()
+        ...profileData,
+        updatedAt: Date.now(),
       };
       
       profiles[profileIndex] = updatedProfile;
@@ -88,7 +81,7 @@ export class ProfileService {
       return updatedProfile;
     } catch (error) {
       console.error(`Erreur lors de la mise à jour du profil ${id}:`, error);
-      throw new Error('Impossible de mettre à jour le profil');
+      return null;
     }
   }
 
@@ -98,13 +91,14 @@ export class ProfileService {
   static async deleteProfile(id: string): Promise<boolean> {
     try {
       const profiles = await this.getProfiles();
-      const filteredProfiles = profiles.filter(profile => profile.id !== id);
+      const updatedProfiles = profiles.filter(profile => profile.id !== id);
       
-      if (filteredProfiles.length === profiles.length) {
-        return false; // Aucun profil n'a été supprimé
+      if (profiles.length === updatedProfiles.length) {
+        console.error(`Profil avec l'ID ${id} non trouvé`);
+        return false;
       }
       
-      await AsyncStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(filteredProfiles));
+      await AsyncStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(updatedProfiles));
       return true;
     } catch (error) {
       console.error(`Erreur lors de la suppression du profil ${id}:`, error);

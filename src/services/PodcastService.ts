@@ -1,73 +1,42 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { RssParserService, RssFeed, RssFeedItem } from './RssParserService';
-import { Podcast, Episode, PodcastType, AgeRange, EpisodeStatus } from '../types/podcast';
-import { convertDurationToSeconds } from '../utils/timeUtils';
-import libraryData from '../data/library.json';
+import { v4 as uuidv4 } from 'uuid';
+import * as rssParser from 'react-native-rss-parser';
+import { 
+  Podcast, 
+  Episode, 
+  PodcastType, 
+  AgeRange, 
+  EpisodeStatus,
+  PodcastSubscription,
+  EpisodeState
+} from '../types/podcast';
 
-const PODCASTS_STORAGE_KEY = '@podkids:podcasts';
-const PODCAST_IDS_KEY = '@podkids:podcast_ids';
-const PODCAST_PREFIX = '@podkids:podcast:';
-
-// Fonction pour générer un ID unique compatible avec React Native
-const generateUniqueId = (): string => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
-
-/**
- * Convertit une durée au format HH:MM:SS ou MM:SS ou secondes en secondes
- * @param duration La durée à convertir
- * @returns La durée en secondes
- */
-// const convertDurationToSeconds = (duration?: string): number => {
-//   if (!duration) return 0;
-  
-//   // Si c'est déjà un nombre, le retourner directement
-//   if (!isNaN(Number(duration))) {
-//     return Number(duration);
-//   }
-  
-//   // Format HH:MM:SS ou MM:SS
-//   const parts = duration.split(':').map(part => parseInt(part, 10));
-  
-//   if (parts.length === 3) {
-//     // Format HH:MM:SS
-//     return parts[0] * 3600 + parts[1] * 60 + parts[2];
-//   } else if (parts.length === 2) {
-//     // Format MM:SS
-//     return parts[0] * 60 + parts[1];
-//   }
-  
-//   // Si le format n'est pas reconnu, retourner 0
-//   return 0;
-// };
+// Clés pour le stockage AsyncStorage
+const PODCASTS_STORAGE_KEY = 'podcasts';
 
 export class PodcastService {
   /**
-   * Récupère tous les podcasts stockés
+   * Initialise les podcasts par défaut si nécessaire
+   */
+  static async initializeDefaultPodcasts(): Promise<void> {
+    try {
+      const podcasts = await this.getPodcasts();
+      if (podcasts.length === 0) {
+        // Aucun podcast n'est encore enregistré, on pourrait initialiser avec des podcasts par défaut
+        // Pour l'instant, on ne fait rien
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'initialisation des podcasts par défaut:', error);
+    }
+  }
+
+  /**
+   * Récupère tous les podcasts (sans les épisodes détaillés pour les non-abonnés)
    */
   static async getPodcasts(): Promise<Podcast[]> {
     try {
-      // Récupérer la liste des IDs de podcasts
-      const podcastIdsJson = await AsyncStorage.getItem(PODCAST_IDS_KEY);
-      const podcastIds: string[] = podcastIdsJson ? JSON.parse(podcastIdsJson) : [];
-      
-      if (podcastIds.length === 0) {
-        return [];
-      }
-      
-      // Récupérer chaque podcast individuellement
-      const podcasts: Podcast[] = [];
-      for (const id of podcastIds) {
-        const podcastJson = await AsyncStorage.getItem(`${PODCAST_PREFIX}${id}`);
-        if (podcastJson) {
-          podcasts.push(JSON.parse(podcastJson));
-        }
-      }
-      
+      const podcastsJson = await AsyncStorage.getItem(PODCASTS_STORAGE_KEY);
+      const podcasts: Podcast[] = podcastsJson ? JSON.parse(podcastsJson) : [];
       return podcasts;
     } catch (error) {
       console.error('Erreur lors de la récupération des podcasts:', error);
@@ -76,12 +45,12 @@ export class PodcastService {
   }
 
   /**
-   * Récupère un podcast par son ID
+   * Récupère un podcast par son ID (sans charger les épisodes détaillés)
    */
   static async getPodcastById(id: string): Promise<Podcast | null> {
     try {
-      const podcastJson = await AsyncStorage.getItem(`${PODCAST_PREFIX}${id}`);
-      return podcastJson ? JSON.parse(podcastJson) : null;
+      const podcasts = await this.getPodcasts();
+      return podcasts.find(podcast => podcast.id === id) || null;
     } catch (error) {
       console.error(`Erreur lors de la récupération du podcast ${id}:`, error);
       return null;
@@ -89,89 +58,160 @@ export class PodcastService {
   }
 
   /**
-   * Vérifie si un podcast avec l'URL donnée existe déjà
+   * Récupère les épisodes d'un podcast en fonction du profil
+   * Si le profil est abonné, récupère les épisodes stockés
+   * Sinon, récupère les épisodes depuis le flux RSS sans les stocker
    */
-  static async podcastExistsByUrl(url: string): Promise<boolean> {
+  static async getPodcastEpisodes(podcastId: string, profileId: string): Promise<Episode[]> {
     try {
-      const podcasts = await this.getPodcasts();
-      return podcasts.some(podcast => podcast.url === url);
+      const podcast = await this.getPodcastById(podcastId);
+      if (!podcast) {
+        throw new Error(`Podcast avec l'ID ${podcastId} non trouvé`);
+      }
+
+      // Vérifier si le profil est abonné au podcast
+      const isSubscribed = podcast.subscription?.some(
+        sub => sub.profileId === profileId && sub.subscription
+      ) || false;
+
+      // Si le profil est abonné et que les épisodes sont stockés, les renvoyer
+      if (isSubscribed && podcast.episodes && podcast.episodes.length > 0) {
+        return podcast.episodes;
+      }
+
+      // Sinon, charger les épisodes depuis le flux RSS
+      return await this.fetchEpisodesFromRss(podcast.url);
     } catch (error) {
-      console.error('Erreur lors de la vérification de l\'existence du podcast:', error);
-      return false;
+      console.error(`Erreur lors de la récupération des épisodes pour le podcast ${podcastId}:`, error);
+      return [];
     }
   }
 
   /**
-   * Récupère et parse un flux RSS
+   * Récupère les épisodes d'un podcast depuis son flux RSS
    */
-  static async fetchRssFeed(url: string): Promise<RssFeed> {
+  static async fetchEpisodesFromRss(feedUrl: string): Promise<Episode[]> {
     try {
-      // Utiliser le service RssParser pour récupérer et parser le flux RSS
-      const feed = await RssParserService.parseRssFeed(url);
-      return feed;
+      // Récupérer le flux RSS
+      const response = await fetch(feedUrl);
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+
+      const responseText = await response.text();
+      
+      // Parser le flux RSS
+      const feed = await rssParser.parse(responseText);
+      
+      // Convertir les items RSS en épisodes
+      return feed.items.map(item => {
+        // Extraire la durée à partir de la balise itunes:duration si elle existe
+        let duration = 0;
+        if (item.itunes?.duration) {
+          // Si le format est HH:MM:SS
+          if (item.itunes.duration.includes(':')) {
+            const parts = item.itunes.duration.split(':').map(part => parseInt(part));
+            if (parts.length === 3) {
+              // HH:MM:SS
+              duration = parts[0] * 3600 + parts[1] * 60 + parts[2];
+            } else if (parts.length === 2) {
+              // MM:SS
+              duration = parts[0] * 60 + parts[1];
+            }
+          } else {
+            // Si c'est juste un nombre de secondes
+            duration = parseInt(item.itunes.duration);
+          }
+        }
+
+        return {
+          id: uuidv4(), // Générer un ID unique pour l'épisode
+          name: item.title,
+          description: item.description || item.content || "",
+          cover: item.itunes?.image || feed.image?.url || "",
+          url: item.enclosures?.[0]?.url || item.links?.[0]?.url || "",
+          duration: duration,
+          status: [], // Aucun statut puisqu'il n'est pas encore écouté
+          publicationDate: item.published ? new Date(item.published).getTime() : Date.now()
+        } as Episode;
+      });
     } catch (error) {
       console.error('Erreur lors de la récupération du flux RSS:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Récupère les métadonnées d'un podcast à partir de son URL RSS
+   */
+  static async fetchPodcastMetadata(feedUrl: string): Promise<Partial<Podcast>> {
+    try {
+      // Récupérer le flux RSS
+      const response = await fetch(feedUrl);
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+
+      const responseText = await response.text();
+      
+      // Parser le flux RSS
+      const feed = await rssParser.parse(responseText);
+      
+      // Extraire l'auteur du feed
+      let author = "Auteur inconnu";
+      if (feed.itunes?.owner?.name) {
+        author = feed.itunes.owner.name;
+      } else if (feed.authors && feed.authors.length > 0) {
+        author = feed.authors[0].name || "Auteur inconnu";
+      }
+      
+      // Extraire les métadonnées du podcast
+      return {
+        name: feed.title,
+        description: feed.description,
+        cover: feed.image?.url || feed.itunes?.image || "",
+        url: feedUrl,
+        author: author,
+        episodes: [], // On ne stocke pas les épisodes ici
+      };
+    } catch (error) {
+      console.error('Erreur lors de la récupération des métadonnées du podcast:', error);
       throw error;
     }
   }
 
   /**
-   * Ajoute un nouveau podcast à partir d'une URL RSS
-   * @param url URL du flux RSS du podcast
-   * @param ageRanges Tranches d'âge du podcast
-   * @param podcastTypes Types de podcast
-   * @returns Le podcast ajouté
+   * Ajoute un nouveau podcast sans ses épisodes
    */
   static async addPodcast(
-    url: string, 
-    ageRanges: AgeRange[], 
-    podcastTypes: PodcastType[]
+    feedUrl: string, 
+    types: PodcastType[], 
+    ageRanges: AgeRange[]
   ): Promise<Podcast> {
     try {
-      // Vérifier si le podcast existe déjà
-      const exists = await this.podcastExistsByUrl(url);
-      if (exists) {
-        throw new Error('Ce podcast existe déjà dans votre bibliothèque');
-      }
-
-      // Récupérer le flux RSS
-      const feed = await this.fetchRssFeed(url);
+      const podcasts = await this.getPodcasts();
       
-      // Créer le nouveau podcast
+      // Vérifier si un podcast avec la même URL existe déjà
+      const existingPodcast = podcasts.find(p => p.url === feedUrl);
+      if (existingPodcast) {
+        throw new Error('Un podcast avec cette URL existe déjà');
+      }
+      
+      // Récupérer les métadonnées du podcast à partir de son URL RSS
+      const podcastMetadata = await this.fetchPodcastMetadata(feedUrl);
+      
       const newPodcast: Podcast = {
-        id: generateUniqueId(),
-        name: feed.title || 'Podcast sans titre',
-        description: feed.description || '',
-        cover: feed.imageUrl || feed.itunesImage || '',
-        url: url,
-        author: feed.itunesOwnerName || feed.itunesAuthor || 'Auteur inconnu',
-        types: podcastTypes,
-        ageRanges: ageRanges,
-        subscription: false,
-        deleteable: true, // Les podcasts ajoutés par l'utilisateur sont toujours supprimables
-        episodes: feed.items.map((item: RssFeedItem) => ({
-          id: generateUniqueId(),
-          name: item.title || 'Épisode sans titre',
-          description: item.description || item.contentEncoded || item.content || '',
-          cover: item.itunesImage || feed.imageUrl || feed.itunesImage || '',
-          url: item.enclosureUrl || '',
-          duration: convertDurationToSeconds(item.itunesDuration),
-          status: EpisodeStatus.TO_LISTEN,
-          timestamp: 0,
-          publicationDate: item.pubDate ? new Date(item.pubDate).getTime() : Date.now()
-        }))
+        id: uuidv4(),
+        ...podcastMetadata as any, // Conversion de type nécessaire ici
+        types,
+        ageRanges,
+        subscription: [],
+        episodes: [],
+        deleteable: true
       };
       
-      // Récupérer la liste des IDs de podcasts
-      const podcastIdsJson = await AsyncStorage.getItem(PODCAST_IDS_KEY);
-      const podcastIds: string[] = podcastIdsJson ? JSON.parse(podcastIdsJson) : [];
-      
-      // Ajouter le nouvel ID
-      podcastIds.push(newPodcast.id);
-      
-      // Enregistrer l'ID et le podcast
-      await AsyncStorage.setItem(PODCAST_IDS_KEY, JSON.stringify(podcastIds));
-      await AsyncStorage.setItem(`${PODCAST_PREFIX}${newPodcast.id}`, JSON.stringify(newPodcast));
+      const updatedPodcasts = [...podcasts, newPodcast];
+      await AsyncStorage.setItem(PODCASTS_STORAGE_KEY, JSON.stringify(updatedPodcasts));
       
       return newPodcast;
     } catch (error) {
@@ -182,57 +222,154 @@ export class PodcastService {
 
   /**
    * Met à jour un podcast existant
-   * @param podcastId ID du podcast à mettre à jour
-   * @param updates Mises à jour à appliquer au podcast
-   * @returns Le podcast mis à jour
    */
-  static async updatePodcast(
-    podcastId: string, 
-    updates: { 
-      name?: string; 
-      description?: string; 
-      cover?: string;
-      author?: string;
-      types?: PodcastType[];
-      ageRanges?: AgeRange[];
-      subscription?: boolean;
-    }
-  ): Promise<Podcast | null> {
+  static async updatePodcast(id: string, podcastData: Partial<Podcast>): Promise<Podcast | null> {
     try {
-      const podcast = await this.getPodcastById(podcastId);
+      const podcasts = await this.getPodcasts();
+      const podcastIndex = podcasts.findIndex(podcast => podcast.id === id);
       
-      if (!podcast) {
-        throw new Error('Podcast non trouvé');
+      if (podcastIndex === -1) {
+        console.error(`Podcast avec l'ID ${id} non trouvé`);
+        return null;
       }
-
-      const updatedPodcast = { ...podcast, ...updates };
-      await AsyncStorage.setItem(`${PODCAST_PREFIX}${podcastId}`, JSON.stringify(updatedPodcast));
-
+      
+      const updatedPodcast: Podcast = {
+        ...podcasts[podcastIndex],
+        ...podcastData,
+      };
+      
+      podcasts[podcastIndex] = updatedPodcast;
+      await AsyncStorage.setItem(PODCASTS_STORAGE_KEY, JSON.stringify(podcasts));
+      
       return updatedPodcast;
     } catch (error) {
-      console.error('Erreur lors de la mise à jour du podcast:', error);
-      throw error;
+      console.error(`Erreur lors de la mise à jour du podcast ${id}:`, error);
+      return null;
     }
   }
 
   /**
-   * Supprime un podcast par son ID
+   * Supprime un podcast
    */
-  static async deletePodcast(id: string): Promise<void> {
+  static async deletePodcast(id: string): Promise<boolean> {
     try {
-      // Récupérer la liste des IDs de podcasts
-      const podcastIdsJson = await AsyncStorage.getItem(PODCAST_IDS_KEY);
-      const podcastIds: string[] = podcastIdsJson ? JSON.parse(podcastIdsJson) : [];
+      const podcasts = await this.getPodcasts();
+      const podcastToDelete = podcasts.find(podcast => podcast.id === id);
       
-      // Supprimer l'ID de la liste
-      const updatedPodcastIds = podcastIds.filter(podcastId => podcastId !== id);
+      if (!podcastToDelete) {
+        console.error(`Podcast avec l'ID ${id} non trouvé`);
+        return false;
+      }
+
+      // Vérifier si le podcast est supprimable
+      if (!podcastToDelete.deleteable) {
+        console.error(`Le podcast ${id} n'est pas supprimable`);
+        return false;
+      }
       
-      // Mettre à jour la liste des IDs et supprimer le podcast
-      await AsyncStorage.setItem(PODCAST_IDS_KEY, JSON.stringify(updatedPodcastIds));
-      await AsyncStorage.removeItem(`${PODCAST_PREFIX}${id}`);
+      const updatedPodcasts = podcasts.filter(podcast => podcast.id !== id);
+      await AsyncStorage.setItem(PODCASTS_STORAGE_KEY, JSON.stringify(updatedPodcasts));
+      return true;
     } catch (error) {
-      console.error('Erreur lors de la suppression du podcast:', error);
-      throw error;
+      console.error(`Erreur lors de la suppression du podcast ${id}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Gère l'abonnement à un podcast pour un profil spécifique
+   * Met à jour les épisodes stockés si nécessaire
+   */
+  static async toggleSubscription(podcastId: string, profileId: string): Promise<boolean> {
+    try {
+      const podcasts = await this.getPodcasts();
+      const podcastIndex = podcasts.findIndex(podcast => podcast.id === podcastId);
+      
+      if (podcastIndex === -1) {
+        console.error(`Podcast avec l'ID ${podcastId} non trouvé`);
+        return false;
+      }
+      
+      const podcast = podcasts[podcastIndex];
+      
+      // Vérifier si le statut d'abonnement existe déjà pour ce profil
+      const subscriptionIndex = podcast.subscription?.findIndex(
+        sub => sub.profileId === profileId
+      ) ?? -1;
+      
+      // Détermine si le profil va être abonné après la mise à jour
+      let willBeSubscribed: boolean;
+      
+      if (subscriptionIndex === -1 || subscriptionIndex === undefined) {
+        // Ajouter un nouveau statut d'abonnement
+        const subscriptions = podcast.subscription || [];
+        subscriptions.push({
+          profileId,
+          subscription: true
+        });
+        podcast.subscription = subscriptions;
+        willBeSubscribed = true;
+      } else {
+        // Inverser le statut d'abonnement existant
+        const isCurrentlySubscribed = podcast.subscription[subscriptionIndex].subscription;
+        podcast.subscription[subscriptionIndex].subscription = !isCurrentlySubscribed;
+        willBeSubscribed = !isCurrentlySubscribed;
+      }
+      
+      // Si le profil s'abonne et qu'il n'y a pas d'épisodes stockés, les récupérer
+      if (willBeSubscribed && (!podcast.episodes || podcast.episodes.length === 0)) {
+        podcast.episodes = await this.fetchEpisodesFromRss(podcast.url);
+      } 
+      // Si le profil se désabonne, vérifier s'il reste des abonnés
+      else if (!willBeSubscribed) {
+        const anySubscribers = podcast.subscription.some(sub => sub.subscription);
+        if (!anySubscribers) {
+          // Aucun abonné restant, supprimer les épisodes stockés
+          podcast.episodes = [];
+        }
+      }
+      
+      podcasts[podcastIndex] = podcast;
+      await AsyncStorage.setItem(PODCASTS_STORAGE_KEY, JSON.stringify(podcasts));
+      
+      return true;
+    } catch (error) {
+      console.error(`Erreur lors de la mise à jour du statut d'abonnement:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Vérifie si un profil est abonné à un podcast
+   */
+  static async isSubscribed(podcastId: string, profileId: string): Promise<boolean> {
+    try {
+      const podcast = await this.getPodcastById(podcastId);
+      if (!podcast) {
+        return false;
+      }
+      
+      return podcast.subscription?.some(
+        sub => sub.profileId === profileId && sub.subscription
+      ) || false;
+    } catch (error) {
+      console.error(`Erreur lors de la vérification de l'abonnement:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Récupère tous les podcasts auxquels un profil est abonné
+   */
+  static async getSubscribedPodcasts(profileId: string): Promise<Podcast[]> {
+    try {
+      const podcasts = await this.getPodcasts();
+      return podcasts.filter(podcast => 
+        podcast.subscription?.some(sub => sub.profileId === profileId && sub.subscription)
+      );
+    } catch (error) {
+      console.error(`Erreur lors de la récupération des podcasts abonnés:`, error);
+      return [];
     }
   }
 
@@ -243,433 +380,102 @@ export class PodcastService {
     podcastId: string,
     episodeId: string,
     status: EpisodeStatus,
-    timestamp?: number
-  ): Promise<void> {
-    try {
-      const podcast = await this.getPodcastById(podcastId);
-      
-      if (!podcast) {
-        throw new Error('Podcast non trouvé');
-      }
-      
-      const episodeIndex = podcast.episodes.findIndex(e => e.id === episodeId);
-      
-      if (episodeIndex === -1) {
-        throw new Error('Épisode non trouvé');
-      }
-
-      // Mettre à jour le statut de l'épisode
-      podcast.episodes[episodeIndex].status = status;
-      
-      // Mettre à jour le timestamp si fourni
-      if (timestamp !== undefined) {
-        podcast.episodes[episodeIndex].timestamp = timestamp;
-      }
-
-      await AsyncStorage.setItem(`${PODCAST_PREFIX}${podcastId}`, JSON.stringify(podcast));
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour du statut de l\'épisode:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Met à jour la position de lecture d'un épisode
-   */
-  static async updateEpisodeTimestamp(
-    podcastId: string,
-    episodeId: string,
-    timestamp: number
-  ): Promise<void> {
-    try {
-      const podcast = await this.getPodcastById(podcastId);
-      
-      if (!podcast) {
-        throw new Error('Podcast non trouvé');
-      }
-      
-      const episodeIndex = podcast.episodes.findIndex(e => e.id === episodeId);
-      
-      if (episodeIndex === -1) {
-        throw new Error('Épisode non trouvé');
-      }
-      
-      podcast.episodes[episodeIndex].timestamp = timestamp;
-      await AsyncStorage.setItem(`${PODCAST_PREFIX}${podcastId}`, JSON.stringify(podcast));
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour de la position de lecture:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Rafraîchit les épisodes d'un podcast à partir de son flux RSS
-   */
-  static async refreshPodcastEpisodes(podcastId: string): Promise<Podcast | null> {
-    try {
-      const podcast = await this.getPodcastById(podcastId);
-      
-      if (!podcast) {
-        throw new Error('Podcast non trouvé');
-      }
-      
-      // Récupérer le flux RSS mis à jour
-      const feed = await this.fetchRssFeed(podcast.url);
-      
-      // Créer une map des épisodes existants pour préserver leurs statuts
-      const existingEpisodes = new Map<string | undefined, Episode>();
-      podcast.episodes.forEach(episode => {
-        existingEpisodes.set(episode.name, episode);
-      });
-
-      // Mettre à jour les épisodes
-      podcast.episodes = feed.items.map((item: RssFeedItem) => {
-        const existingEpisode = existingEpisodes.get(item.title);
-        
-        if (existingEpisode) {
-          return {
-            ...existingEpisode,
-            description: item.description || item.contentEncoded || item.content || existingEpisode.description,
-            cover: item.itunesImage || feed.imageUrl || existingEpisode.cover,
-            url: item.enclosureUrl || existingEpisode.url || '',
-            duration: convertDurationToSeconds(item.itunesDuration),
-            publicationDate: item.pubDate ? new Date(item.pubDate).getTime() : existingEpisode.publicationDate
-          };
-        } else {
-          // Créer un nouvel épisode
-          return {
-            id: generateUniqueId(),
-            name: item.title || 'Épisode sans titre',
-            description: item.description || item.contentEncoded || item.content || '',
-            cover: item.itunesImage || feed.imageUrl || '',
-            url: item.enclosureUrl || '',
-            duration: convertDurationToSeconds(item.itunesDuration),
-            status: EpisodeStatus.TO_LISTEN,
-            timestamp: 0,
-            publicationDate: item.pubDate ? new Date(item.pubDate).getTime() : Date.now()
-          };
-        }
-      });
-      
-      // Mettre à jour le podcast
-      await AsyncStorage.setItem(`${PODCAST_PREFIX}${podcastId}`, JSON.stringify(podcast));
-      
-      return podcast;
-    } catch (error) {
-      console.error('Erreur lors du rafraîchissement des épisodes:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Récupère les podcasts par tranche d'âge
-   */
-  static async getPodcastsByAgeRange(ageRange: AgeRange): Promise<Podcast[]> {
+    timestamp: number,
+    profileId: string
+  ): Promise<boolean> {
     try {
       const podcasts = await this.getPodcasts();
-      return podcasts.filter(podcast => podcast.ageRanges.includes(ageRange));
-    } catch (error) {
-      console.error('Erreur lors de la récupération des podcasts par tranche d\'âge:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Récupère les podcasts par type
-   */
-  static async getPodcastsByType(type: PodcastType): Promise<Podcast[]> {
-    try {
-      const podcasts = await this.getPodcasts();
-      return podcasts.filter(podcast => podcast.types.includes(type));
-    } catch (error) {
-      console.error('Erreur lors de la récupération des podcasts par type:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Récupère les podcasts par tranche d'âge et type
-   */
-  static async getPodcastsByAgeRangeAndType(ageRange: AgeRange, type: PodcastType): Promise<Podcast[]> {
-    try {
-      const podcasts = await this.getPodcasts();
-      return podcasts.filter(
-        podcast => podcast.ageRanges.includes(ageRange) && podcast.types.includes(type)
-      );
-    } catch (error) {
-      console.error('Erreur lors de la récupération des podcasts par tranche d\'âge et type:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Récupère les podcasts favoris
-   * @returns Liste des podcasts favoris
-   */
-  static async getFavoritePodcasts(): Promise<Podcast[]> {
-    try {
-      const podcasts = await this.getPodcasts();
-      return podcasts.filter(podcast => podcast.subscription);
-    } catch (error) {
-      console.error('Erreur lors de la récupération des podcasts favoris:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Vérifie si la bibliothèque de podcasts est vide et la remplit avec les podcasts par défaut si nécessaire
-   * @returns true si la bibliothèque a été initialisée, false si elle contenait déjà des podcasts
-   */
-  static async initializeDefaultPodcasts(): Promise<boolean> {
-    try {
-      // Vérifier si des podcasts existent déjà
-      const podcastIdsJson = await AsyncStorage.getItem(PODCAST_IDS_KEY);
-      const podcastIds: string[] = podcastIdsJson ? JSON.parse(podcastIdsJson) : [];
+      const podcastIndex = podcasts.findIndex(podcast => podcast.id === podcastId);
       
-      if (podcastIds.length > 0) {
-        console.log('La bibliothèque de podcasts contient déjà des podcasts, pas d\'initialisation nécessaire');
+      if (podcastIndex === -1) {
+        console.error(`Podcast avec l'ID ${podcastId} non trouvé`);
         return false;
       }
-
-      console.log('Initialisation de la bibliothèque de podcasts avec les podcasts par défaut...');
       
-      // Parcourir les données de la bibliothèque et ajouter chaque podcast
-      const addedPodcastIds: string[] = [];
-      const errors: string[] = [];
-
-      // Traiter chaque podcast dans la bibliothèque
-      for (const podcastData of libraryData) {
-        try {
-          // Convertir les tranches d'âge du format JSON en enum AgeRange
-          const ageRanges: AgeRange[] = [];
-          for (const ageRangeKey of podcastData.AgeRange) {
-            // Convertir la clé de l'enum en valeur de l'enum
-            if (ageRangeKey in AgeRange) {
-              ageRanges.push(AgeRange[ageRangeKey as keyof typeof AgeRange]);
-            } else {
-              console.warn(`Tranche d'âge inconnue: ${ageRangeKey}`);
-            }
-          }
-
-          if (ageRanges.length === 0) {
-            console.warn(`Aucune tranche d'âge valide pour le podcast: ${podcastData.name}`);
-            continue;
-          }
-
-          // Convertir les types de podcast du format JSON en enum PodcastType
-          const podcastTypes: PodcastType[] = [];
-          for (const typeKey of podcastData.PodcastType) {
-            // Vérifier si la clé existe dans l'enum PodcastType
-            if (typeKey in PodcastType) {
-              // Utiliser la clé pour accéder à l'enum directement
-              podcastTypes.push(PodcastType[typeKey as keyof typeof PodcastType]);
-            } else {
-              console.warn(`Type de podcast inconnu: ${typeKey}`);
-            }
-          }
-
-          if (podcastTypes.length === 0) {
-            console.warn(`Aucun type de podcast valide pour le podcast: ${podcastData.name}`);
-            continue;
-          }
-
-          // Récupérer le flux RSS
-          const feed = await this.fetchRssFeed(podcastData.url);
-          
-          // Créer le nouveau podcast
-          const newPodcast: Podcast = {
-            id: generateUniqueId(),
-            name: feed.title || 'Podcast sans titre',
-            description: feed.description || '',
-            cover: feed.imageUrl || feed.itunesImage || '',
-            url: podcastData.url,
-            author: feed.itunesOwnerName || feed.itunesAuthor || 'Auteur inconnu',
-            types: podcastTypes,
-            ageRanges: ageRanges,
-            subscription: false,
-            deleteable: podcastData.deleteable !== undefined ? podcastData.deleteable : true,
-            episodes: feed.items.map((item: RssFeedItem) => ({
-              id: generateUniqueId(),
-              name: item.title || 'Épisode sans titre',
-              description: item.description || item.contentEncoded || item.content || '',
-              cover: item.itunesImage || feed.imageUrl || feed.itunesImage || '',
-              url: item.enclosureUrl || '',
-              duration: convertDurationToSeconds(item.itunesDuration),
-              status: EpisodeStatus.TO_LISTEN,
-              timestamp: 0,
-              publicationDate: item.pubDate ? new Date(item.pubDate).getTime() : Date.now()
-            }))
-          };
-          
-          // Ajouter le podcast individuellement
-          await AsyncStorage.setItem(`${PODCAST_PREFIX}${newPodcast.id}`, JSON.stringify(newPodcast));
-          addedPodcastIds.push(newPodcast.id);
-          
-          // Mettre à jour la liste des IDs après chaque ajout
-          await AsyncStorage.setItem(PODCAST_IDS_KEY, JSON.stringify(addedPodcastIds));
-          
-          console.log(`Podcast ajouté: ${newPodcast.name} (${podcastData.url})`);
-        } catch (error) {
-          // Ignorer les erreurs individuelles pour continuer avec les autres podcasts
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          console.error(`Erreur lors de l'ajout du podcast ${podcastData.name || podcastData.url}: ${errorMessage}`);
-          errors.push(`${podcastData.name || podcastData.url}: ${errorMessage}`);
-        }
+      const podcast = podcasts[podcastIndex];
+      
+      // Vérifier si le profil est abonné au podcast
+      const isSubscribed = podcast.subscription?.some(
+        sub => sub.profileId === profileId && sub.subscription
+      );
+      
+      // Si le profil n'est pas abonné, on ne peut pas mettre à jour le statut
+      if (!isSubscribed) {
+        console.error(`Le profil ${profileId} n'est pas abonné au podcast ${podcastId}`);
+        return false;
       }
-
-      console.log(`Initialisation terminée. ${addedPodcastIds.length} podcasts ajoutés, ${errors.length} erreurs.`);
+      
+      const episodeIndex = podcast.episodes.findIndex(episode => episode.id === episodeId);
+      
+      if (episodeIndex === -1) {
+        console.error(`Épisode avec l'ID ${episodeId} non trouvé`);
+        return false;
+      }
+      
+      // Mettre à jour le statut de l'épisode pour ce profil spécifique
+      const episodeStatusIndex = podcast.episodes[episodeIndex].status?.findIndex(
+        (state: EpisodeState) => state.profileId === profileId
+      ) ?? -1;
+      
+      if (episodeStatusIndex === -1 || episodeStatusIndex === undefined) {
+        // Ajouter un nouveau statut pour ce profil
+        const statusArray = podcast.episodes[episodeIndex].status || [];
+        statusArray.push({
+          profileId,
+          status,
+          timestamp
+        });
+        podcast.episodes[episodeIndex].status = statusArray;
+      } else {
+        // Mettre à jour le statut existant
+        podcast.episodes[episodeIndex].status[episodeStatusIndex].status = status;
+        podcast.episodes[episodeIndex].status[episodeStatusIndex].timestamp = timestamp;
+      }
+      
+      podcasts[podcastIndex] = podcast;
+      await AsyncStorage.setItem(PODCASTS_STORAGE_KEY, JSON.stringify(podcasts));
+      
       return true;
     } catch (error) {
-      console.error('Erreur lors de l\'initialisation des podcasts par défaut:', error);
+      console.error(`Erreur lors de la mise à jour du statut de l'épisode:`, error);
       return false;
     }
   }
 
   /**
-   * Nettoie complètement toutes les données de podcasts
-   * Utile en cas d'erreur "database or disk is full"
+   * Récupère le statut d'écoute d'un épisode pour un profil spécifique
    */
-  static async cleanAllPodcastData(): Promise<void> {
+  static async getEpisodeStatus(
+    podcastId: string,
+    episodeId: string, 
+    profileId: string
+  ): Promise<{status: EpisodeStatus, timestamp: number} | null> {
     try {
-      console.log('Nettoyage de toutes les données de podcasts...');
-      
-      // Récupérer la liste des IDs de podcasts
-      const podcastIdsJson = await AsyncStorage.getItem(PODCAST_IDS_KEY);
-      const podcastIds: string[] = podcastIdsJson ? JSON.parse(podcastIdsJson) : [];
-      
-      // Supprimer chaque podcast individuellement
-      for (const id of podcastIds) {
-        await AsyncStorage.removeItem(`${PODCAST_PREFIX}${id}`);
+      const podcast = await this.getPodcastById(podcastId);
+      if (!podcast) {
+        return null;
       }
       
-      // Supprimer la liste des IDs et l'ancienne clé de stockage
-      await AsyncStorage.removeItem(PODCAST_IDS_KEY);
-      await AsyncStorage.removeItem(PODCASTS_STORAGE_KEY);
+      const episode = podcast.episodes.find(ep => ep.id === episodeId);
+      if (!episode) {
+        return null;
+      }
       
-      console.log('Nettoyage terminé. Toutes les données de podcasts ont été supprimées.');
+      const statusEntry = episode.status?.find(state => state.profileId === profileId);
+      if (!statusEntry) {
+        return {
+          status: EpisodeStatus.TO_LISTEN,
+          timestamp: 0
+        };
+      }
+      
+      return {
+        status: statusEntry.status,
+        timestamp: statusEntry.timestamp
+      };
     } catch (error) {
-      console.error('Erreur lors du nettoyage des données de podcasts:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Initialise les podcasts correspondant aux tranches d'âge spécifiées
-   * @param ageRanges Liste des tranches d'âge pour lesquelles charger les podcasts
-   * @returns nombre de podcasts ajoutés
-   */
-  static async initializePodcastsByAgeRanges(ageRanges: AgeRange[]): Promise<number> {
-    try {
-      if (!ageRanges || ageRanges.length === 0) {
-        console.warn('Aucune tranche d\'âge spécifiée pour l\'initialisation des podcasts');
-        return 0;
-      }
-
-      console.log(`Initialisation des podcasts pour les tranches d'âge: ${ageRanges.join(', ')}...`);
-      
-      // Récupérer la liste actuelle des IDs de podcasts
-      const podcastIdsJson = await AsyncStorage.getItem(PODCAST_IDS_KEY);
-      const existingPodcastIds: string[] = podcastIdsJson ? JSON.parse(podcastIdsJson) : [];
-      
-      // Parcourir les données de la bibliothèque et ajouter chaque podcast correspondant aux tranches d'âge
-      const addedPodcastIds: string[] = [...existingPodcastIds];
-      const errors: string[] = [];
-      let addedCount = 0;
-
-      // Créer un Set des URLs des podcasts existants pour éviter les doublons
-      const existingPodcastUrls = new Set<string>();
-      for (const id of existingPodcastIds) {
-        const podcastJson = await AsyncStorage.getItem(`${PODCAST_PREFIX}${id}`);
-        if (podcastJson) {
-          const podcast = JSON.parse(podcastJson);
-          existingPodcastUrls.add(podcast.url);
-        }
-      }
-
-      // Traiter chaque podcast dans la bibliothèque
-      for (const podcastData of libraryData) {
-        try {
-          // Vérifier si le podcast existe déjà
-          if (existingPodcastUrls.has(podcastData.url)) {
-            continue;
-          }
-          
-          // Vérifier si le podcast correspond à au moins une des tranches d'âge spécifiées
-          const podcastAgeRanges: AgeRange[] = [];
-          for (const ageRangeKey of podcastData.AgeRange) {
-            if (ageRangeKey in AgeRange) {
-              podcastAgeRanges.push(AgeRange[ageRangeKey as keyof typeof AgeRange]);
-            }
-          }
-          
-          // Si le podcast ne correspond à aucune des tranches d'âge spécifiées, l'ignorer
-          if (!podcastAgeRanges.some(age => ageRanges.includes(age))) {
-            continue;
-          }
-
-          // Convertir les types de podcast du format JSON en enum PodcastType
-          const podcastTypes: PodcastType[] = [];
-          for (const typeKey of podcastData.PodcastType) {
-            if (typeKey in PodcastType) {
-              podcastTypes.push(PodcastType[typeKey as keyof typeof PodcastType]);
-            }
-          }
-
-          if (podcastTypes.length === 0) {
-            console.warn(`Aucun type de podcast valide pour le podcast: ${podcastData.name}`);
-            continue;
-          }
-
-          // Récupérer le flux RSS
-          const feed = await this.fetchRssFeed(podcastData.url);
-          
-          // Créer le nouveau podcast
-          const newPodcast: Podcast = {
-            id: generateUniqueId(),
-            name: podcastData.name || feed.title || 'Podcast sans titre',
-            description: feed.description || '',
-            cover: feed.imageUrl || feed.itunesImage || '',
-            url: podcastData.url,
-            author: podcastData.author || feed.itunesOwnerName || feed.itunesAuthor || 'Auteur inconnu',
-            types: podcastTypes,
-            ageRanges: podcastAgeRanges,
-            subscription: false,
-            deleteable: podcastData.deleteable !== undefined ? podcastData.deleteable : true,
-            episodes: feed.items.map((item: RssFeedItem) => ({
-              id: generateUniqueId(),
-              name: item.title || 'Épisode sans titre',
-              description: item.description || item.contentEncoded || item.content || '',
-              cover: item.itunesImage || feed.imageUrl || feed.itunesImage || '',
-              url: item.enclosureUrl || '',
-              duration: convertDurationToSeconds(item.itunesDuration),
-              status: EpisodeStatus.TO_LISTEN,
-              timestamp: 0,
-              publicationDate: item.pubDate ? new Date(item.pubDate).getTime() : Date.now()
-            }))
-          };
-          
-          // Ajouter le podcast individuellement
-          await AsyncStorage.setItem(`${PODCAST_PREFIX}${newPodcast.id}`, JSON.stringify(newPodcast));
-          addedPodcastIds.push(newPodcast.id);
-          addedCount++;
-          
-          // Mettre à jour la liste des IDs après chaque ajout
-          await AsyncStorage.setItem(PODCAST_IDS_KEY, JSON.stringify(addedPodcastIds));
-          
-          console.log(`Podcast ajouté: ${newPodcast.name} (${podcastData.url})`);
-        } catch (error) {
-          // Ignorer les erreurs individuelles pour continuer avec les autres podcasts
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          console.error(`Erreur lors de l'ajout du podcast ${podcastData.name || podcastData.url}: ${errorMessage}`);
-          errors.push(`${podcastData.name || podcastData.url}: ${errorMessage}`);
-        }
-      }
-
-      console.log(`Initialisation terminée. ${addedCount} podcasts ajoutés, ${errors.length} erreurs.`);
-      return addedCount;
-    } catch (error) {
-      console.error('Erreur lors de l\'initialisation des podcasts par tranches d\'âge:', error);
-      return 0;
+      console.error(`Erreur lors de la récupération du statut de l'épisode:`, error);
+      return null;
     }
   }
 }

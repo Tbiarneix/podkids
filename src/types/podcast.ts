@@ -1,9 +1,9 @@
+import { Profile } from "./profile";
 export enum EpisodeStatus {
   TO_LISTEN = "to listen",
   LISTENING = "listening",
-  LISTENED = "listened"
+  LISTENED = "listened",
 }
-
 export enum PodcastType {
   STORIES = "Histoires et Contes",
   HISTORY = "Histoire",
@@ -22,9 +22,8 @@ export enum PodcastType {
   GAMES = "Jeux et divertissement",
   HEROES = "Héros et Légendes",
   SOCIETY = "Société, actualités et Informations",
-  ENTERTAINMENT = "Amusement et divertissement"
+  ENTERTAINMENT = "Amusement et divertissement",
 }
-
 export enum PodcastTypeDescription {
   STORIES = "Contes de fées, histoires classiques, récits imaginaires et contes pour le coucher",
   HISTORY = "Contenus éducatifs sur l'histoire",
@@ -43,18 +42,16 @@ export enum PodcastTypeDescription {
   GAMES = "Discussions sur les jeux de société, les jeux vidéo adaptés aux enfants et les activités de récréation et loisirs",
   HEROES = "Histoires de héros célèbres, légendes mythologiques, super-héros et personnages historiques inspirants",
   SOCIETY = "Pour mieux comprendre la société et décortiquer les actualités et les informations du quotidien",
-  ENTERTAINMENT = "Emissions de divertissement, de loisirs et de récréation"
+  ENTERTAINMENT = "Emissions de divertissement, de loisirs et de récréation",
 }
-
 export enum AgeRange {
   UNDER_3 = "under 3",
   BETWEEN_4_AND_6 = "between 4 and 6",
   BETWEEN_7_AND_9 = "between 7 and 9",
   BETWEEN_10_AND_12 = "between 10 and 12",
   BETWEEN_13_AND_15 = "between 13 and 15",
-  OVER_15 = "over 15"
+  OVER_15 = "over 15",
 }
-
 export interface Episode {
   id: string;
   name: string;
@@ -62,11 +59,9 @@ export interface Episode {
   cover: string;
   url: string;
   duration: number;
-  status: EpisodeStatus;
-  timestamp: number;
+  status: EpisodeState[];
   publicationDate: number;
 }
-
 export interface Podcast {
   id: string;
   name: string;
@@ -76,14 +71,22 @@ export interface Podcast {
   author: string;
   types: PodcastType[];
   ageRanges: AgeRange[];
-  subscription: boolean;
+  subscription: PodcastSubscription[];
   episodes: Episode[];
   deleteable: boolean;
 }
-
 export interface Playlist {
   id: string;
   name: string;
   episodes: Episode[];
   deleteable: boolean;
+}
+export interface PodcastSubscription {
+  profileId: Profile["id"];
+  subscription: boolean;
+}
+export interface EpisodeState {
+  profileId: Profile["id"];
+  status: EpisodeStatus;
+  timestamp: number;
 }

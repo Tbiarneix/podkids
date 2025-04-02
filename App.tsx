@@ -37,6 +37,7 @@ import { PinService } from './src/services/PinService';
 import { PodcastService } from './src/services/PodcastService';
 import { PlayerProvider } from './src/contexts/PlayerContext';
 import { ToastProvider } from './src/contexts/ToastContext';
+import { ActiveProfileProvider } from './src/contexts/ActiveProfileContext';
 import { PlayerBar } from './src/components/PlayerBar';
 import { usePlayer } from './src/contexts/PlayerContext';
 
@@ -227,7 +228,9 @@ export default function App() {
   return (
     <PlayerProvider>
       <ToastProvider>
-        <MainApp />
+        <ActiveProfileProvider>
+          <MainApp />
+        </ActiveProfileProvider>
       </ToastProvider>
     </PlayerProvider>
   );
