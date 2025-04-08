@@ -14,11 +14,12 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from './Typography';
 import { COLORS, SPACING } from '../utils/theme';
-import { Episode, Podcast, EpisodeStatus } from '../types/podcast';
+import { Episode, Podcast, EpisodeStatus, EpisodeState } from '../types/podcast';
 import { RootStackParamList } from '../types/navigation';
 import { usePlayer } from '../contexts/PlayerContext';
 import { useToast } from '../contexts/ToastContext';
 import { PlaylistService } from '../services/PlaylistService';
+import { useActiveProfile } from '../contexts/ActiveProfileContext';
 
 type EpisodeItemProps = {
   episode: Episode;
@@ -43,6 +44,7 @@ export const EpisodeItem: React.FC<EpisodeItemProps> = ({
     currentEpisode 
   } = usePlayer();
   const { showToast } = useToast();
+  const { activeProfile } = useActiveProfile();
 
   const [menuVisible, setMenuVisible] = useState(false);
   const [playlists, setPlaylists] = useState<any[]>([]);
@@ -51,6 +53,14 @@ export const EpisodeItem: React.FC<EpisodeItemProps> = ({
 
   // Vérifier si cet épisode est celui qui est en cours de lecture
   const isCurrentEpisode = currentEpisode?.id === episode.id;
+
+  // Récupérer le statut de l'épisode pour le profil actif
+  const episodeState = episode.status?.find(
+    (state: EpisodeState) => activeProfile && state.profileId === activeProfile.id
+  );
+
+  const episodeStatus = episodeState?.status || EpisodeStatus.TO_LISTEN;
+  const timestamp = episodeState?.timestamp || 0;
 
   useEffect(() => {
     if (menuVisible) {
@@ -156,187 +166,146 @@ export const EpisodeItem: React.FC<EpisodeItemProps> = ({
     }
   };
 
-  const handleCreatePlaylist = async () => {
+  const addEpisodeToPlaylist = async (playlistId: string) => {
+    try {
+      await PlaylistService.addEpisodeToPlaylist(playlistId, episode);
+      showToast("Épisode ajouté à la playlist", "success");
+      setMenuVisible(false);
+    } catch (error) {
+      console.error("Erreur lors de l'ajout à la playlist:", error);
+      showToast("Erreur lors de l'ajout à la playlist", "error");
+    }
+  };
+
+  const createNewPlaylist = async () => {
     if (!newPlaylistName.trim()) {
-      showToast('Veuillez entrer un nom pour la playlist', 'error');
+      showToast("Veuillez entrer un nom de playlist", "error");
       return;
     }
 
     try {
-      const newPlaylist = await PlaylistService.createPlaylist(newPlaylistName.trim());
+      const newPlaylist = await PlaylistService.createPlaylist(newPlaylistName);
       await PlaylistService.addEpisodeToPlaylist(newPlaylist.id, episode);
-      
-      setNewPlaylistName('');
+      showToast("Playlist créée et épisode ajouté", "success");
+      setMenuVisible(false);
       setCreatePlaylistMode(false);
-      setMenuVisible(false);
-      
-      showToast(`Épisode ajouté à la nouvelle playlist "${newPlaylist.name}"`, 'success');
+      setNewPlaylistName('');
     } catch (error) {
-      console.error('Erreur lors de la création de la playlist:', error);
-      showToast('Erreur lors de la création de la playlist', 'error');
+      console.error("Erreur lors de la création de la playlist:", error);
+      showToast("Erreur lors de la création de la playlist", "error");
     }
   };
 
-  const handleSelectPlaylist = async (playlistId: string, playlistName: string) => {
-    try {
-      await PlaylistService.addEpisodeToPlaylist(playlistId, episode);
-      setMenuVisible(false);
-      showToast(`Épisode ajouté à la playlist "${playlistName}"`, 'success');
-    } catch (error) {
-      console.error('Erreur lors de l\'ajout à la playlist:', error);
-      showToast('Erreur lors de l\'ajout à la playlist', 'error');
+  // Adaptez la durée affichée en fonction du statut d'écoute
+  const renderDurationTag = () => {
+    // Si l'épisode est en cours d'écoute et a un timestamp > 0
+    if (episodeStatus === EpisodeStatus.LISTENING && timestamp > 0) {
+      const remainingTime = episode.duration - timestamp;
+      return (
+        <View style={styles.durationTag}>
+          <Typography variant="caption" style={styles.tagText}>
+            {formatRemainingTime(remainingTime)}
+          </Typography>
+        </View>
+      );
     }
+    
+    // Sinon, afficher la durée totale
+    return (
+      <View style={styles.durationTag}>
+        <Typography variant="caption" style={styles.tagText}>
+          {formatDuration(episode.duration)}
+        </Typography>
+      </View>
+    );
   };
-
-  const renderPlaylistItem = ({ item }: { item: any }) => (
-    <TouchableOpacity 
-      style={styles.playlistItem}
-      onPress={() => handleSelectPlaylist(item.id, item.name)}
-    >
-      <Ionicons name="musical-notes" size={24} color={COLORS.primary} style={styles.playlistIcon} />
-      <Typography variant="body" style={styles.playlistName} numberOfLines={1}>
-        {item.name}
-      </Typography>
-      <Typography variant="caption" style={styles.episodeCount}>
-        {item.episodes.length} épisode{item.episodes.length !== 1 ? 's' : ''}
-      </Typography>
-    </TouchableOpacity>
-  );
 
   return (
-    <TouchableOpacity 
-      style={styles.container}
-      onPress={handlePress}
-    >
-      <Image 
-        source={{ uri: episode.cover || podcast.cover || 'https://via.placeholder.com/60' }}
-        style={styles.cover}
-      />
-      
-      <View style={styles.content}>
-        <Typography variant="body" style={styles.title} numberOfLines={1}>
-          {episode.name}
-        </Typography>
-        
-        <Typography variant="caption" style={styles.description} numberOfLines={2}>
-          {episode.description}
-        </Typography>
-        
-        <View style={styles.footer}>
+    <View style={styles.container}>
+      <TouchableOpacity 
+        style={styles.episodeContainer} 
+        onPress={handlePress}
+      >
+        <Image 
+          source={{ uri: episode.cover || podcast.cover || 'https://via.placeholder.com/150' }} 
+          style={styles.cover}
+        />
+        <View style={styles.infoContainer}>
+          <Typography variant="body" numberOfLines={2} style={styles.title}>
+            {episode.name}
+          </Typography>
+          <Typography variant="caption" numberOfLines={2} style={styles.description}>
+            {episode.description}
+          </Typography>
+          
           <View style={styles.tagsContainer}>
-            <View style={[
-              styles.tag, 
-              episode.status === EpisodeStatus.LISTENING ? styles.listeningTag : 
-              episode.status === EpisodeStatus.LISTENED ? styles.listenedTag : 
-              styles.toListenTag
-            ]}>
+            <View style={[styles.statusTag, getStatusTagStyle(episodeStatus)]}>
               <Typography variant="caption" style={styles.tagText}>
-                {getStatusLabel(episode.status)}
+                {getStatusLabel(episodeStatus)}
               </Typography>
             </View>
             
-            {episode.status !== EpisodeStatus.LISTENED && (
-              <View style={styles.durationTag}>
-                <Typography variant="caption" style={styles.tagText}>
-                  {episode.status === EpisodeStatus.LISTENING && episode.timestamp !== undefined
-                    ? formatRemainingTime(episode.duration - episode.timestamp)
-                    : formatDuration(episode.duration)}
-                </Typography>
-              </View>
-            )}
+            {renderDurationTag()}
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
       
-      {inPlaylist ? (
-        <TouchableOpacity 
-          style={styles.removeButton}
-          onPress={handleRemoveFromPlaylist}
-        >
+      <View style={styles.actionButtons}>
+        <TouchableOpacity onPress={handlePlayPress} style={styles.playButton}>
           <Ionicons 
-            name="remove-circle-outline" 
-            size={28} 
-            color={COLORS.error} 
-          />
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={handleAddToPlaylist}
-        >
-          <Ionicons 
-            name="add-circle-outline" 
-            size={28} 
+            name={isCurrentEpisode && isPlaying ? "pause-circle" : "play-circle"} 
+            size={36} 
             color={COLORS.primary} 
           />
         </TouchableOpacity>
-      )}
+        
+        {!inPlaylist ? (
+          <TouchableOpacity onPress={handleAddToPlaylist} style={styles.addToPlaylistButton}>
+            <Ionicons name="add-circle-outline" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={handleRemoveFromPlaylist} style={styles.addToPlaylistButton}>
+            <Ionicons name="trash-outline" size={24} color={COLORS.error} />
+          </TouchableOpacity>
+        )}
+      </View>
       
-      <TouchableOpacity 
-        style={styles.playButton}
-        onPress={handlePlayPress}
-      >
-        <Ionicons 
-          name={(isCurrentEpisode && isPlaying) ? "pause-circle" : "play-circle"} 
-          size={44} 
-          color={COLORS.primary} 
-        />
-      </TouchableOpacity>
-
-      {/* Menu contextuel pour ajouter à une playlist */}
+      {/* Modal pour ajouter à une playlist */}
       <Modal
-        animationType="slide"
-        transparent={true}
         visible={menuVisible}
+        transparent={true}
+        animationType="slide"
         onRequestClose={() => setMenuVisible(false)}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Typography variant="subtitle" style={styles.modalTitle}>
-                Ajouter à une playlist
-              </Typography>
-              <TouchableOpacity 
-                style={styles.closeButton}
-                onPress={() => {
-                  setMenuVisible(false);
-                  setCreatePlaylistMode(false);
-                  setNewPlaylistName('');
-                }}
-              >
-                <Ionicons name="close" size={24} color={COLORS.text} />
-              </TouchableOpacity>
-            </View>
-
+            <Typography variant="subtitle" style={styles.modalTitle}>
+              Ajouter à une playlist
+            </Typography>
+            
             {createPlaylistMode ? (
               <View style={styles.createPlaylistContainer}>
                 <TextInput
-                  style={styles.input}
+                  style={styles.playlistNameInput}
                   placeholder="Nom de la playlist"
-                  placeholderTextColor={COLORS.textSecondary}
                   value={newPlaylistName}
                   onChangeText={setNewPlaylistName}
-                  autoFocus
+                  placeholderTextColor={COLORS.textSecondary}
                 />
-                
-                <View style={styles.createPlaylistButtons}>
+                <View style={styles.createPlaylistButtonsContainer}>
                   <TouchableOpacity 
-                    style={[styles.modalButton, styles.cancelButton]}
-                    onPress={() => {
-                      setCreatePlaylistMode(false);
-                      setNewPlaylistName('');
-                    }}
+                    style={[styles.createPlaylistButton, styles.cancelButton]} 
+                    onPress={() => setCreatePlaylistMode(false)}
                   >
-                    <Typography variant="body">
+                    <Typography variant="body" style={styles.buttonText}>
                       Annuler
                     </Typography>
                   </TouchableOpacity>
-                  
                   <TouchableOpacity 
-                    style={[styles.modalButton, styles.createButton]}
-                    onPress={handleCreatePlaylist}
+                    style={[styles.createPlaylistButton, styles.confirmButton]} 
+                    onPress={createNewPlaylist}
                   >
-                    <Typography variant="body" style={styles.createButtonText}>
+                    <Typography variant="body" style={styles.buttonText}>
                       Créer
                     </Typography>
                   </TouchableOpacity>
@@ -344,36 +313,52 @@ export const EpisodeItem: React.FC<EpisodeItemProps> = ({
               </View>
             ) : (
               <>
+                <FlatList
+                  data={playlists}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity 
+                      style={styles.playlistItem}
+                      onPress={() => addEpisodeToPlaylist(item.id)}
+                    >
+                      <Typography variant="body" style={styles.playlistName}>
+                        {item.name}
+                      </Typography>
+                      <Ionicons name="add-circle-outline" size={24} color={COLORS.primary} />
+                    </TouchableOpacity>
+                  )}
+                  ListEmptyComponent={
+                    <Typography variant="body" style={styles.emptyListText}>
+                      Aucune playlist disponible
+                    </Typography>
+                  }
+                  style={styles.playlistList}
+                />
+                
                 <TouchableOpacity 
-                  style={styles.createPlaylistOption}
+                  style={styles.createNewPlaylistButton}
                   onPress={() => setCreatePlaylistMode(true)}
                 >
-                  <Ionicons name="add-circle" size={24} color={COLORS.primary} />
-                  <Typography variant="body" style={styles.createPlaylistText}>
+                  <Ionicons name="add-circle-outline" size={18} color={COLORS.primary} />
+                  <Typography variant="body" style={styles.createNewPlaylistText}>
                     Créer une nouvelle playlist
                   </Typography>
                 </TouchableOpacity>
-
-                {playlists.length > 0 ? (
-                  <FlatList
-                    data={playlists}
-                    renderItem={renderPlaylistItem}
-                    keyExtractor={item => item.id}
-                    style={styles.playlistsList}
-                  />
-                ) : (
-                  <View style={styles.emptyContainer}>
-                    <Typography variant="body" style={styles.emptyText}>
-                      Aucune playlist existante
-                    </Typography>
-                  </View>
-                )}
               </>
             )}
+            
+            <TouchableOpacity 
+              style={styles.closeModalButton}
+              onPress={() => setMenuVisible(false)}
+            >
+              <Typography variant="body" style={styles.closeModalText}>
+                Fermer
+              </Typography>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
-    </TouchableOpacity>
+    </View>
   );
 };
 
@@ -386,163 +371,161 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     alignItems: 'center',
   },
+  episodeContainer: {
+    flex: 1,
+    flexDirection: 'row',
+  },
   cover: {
     width: 60,
     height: 60,
     borderRadius: 8,
     marginRight: SPACING.md,
   },
-  content: {
+  infoContainer: {
     flex: 1,
+    justifyContent: 'space-between',
   },
   title: {
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: SPACING.xs,
   },
   description: {
     color: COLORS.textSecondary,
-    marginBottom: 8,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    marginBottom: SPACING.xs,
   },
   tagsContainer: {
     flexDirection: 'row',
+    marginTop: SPACING.xs,
   },
-  tag: {
-    paddingHorizontal: 8,
+  statusTag: {
+    borderWidth: 1,
+    borderColor: COLORS.tertiary,
+    borderRadius: 12,
+    paddingHorizontal: SPACING.sm,
     paddingVertical: 2,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  toListenTag: {
-    backgroundColor: COLORS.tertiary + '40',
-  },
-  listeningTag: {
-    backgroundColor: COLORS.primary + '40',
-  },
-  listenedTag: {
-    backgroundColor: COLORS.success + '40',
+    marginRight: SPACING.sm,
   },
   durationTag: {
-    backgroundColor: COLORS.textTertiary,
-    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: COLORS.tertiary,
+    borderRadius: 12,
+    paddingHorizontal: SPACING.sm,
     paddingVertical: 2,
-    borderRadius: 4,
   },
   tagText: {
-    fontSize: 10,
     color: COLORS.text,
+    fontSize: 10,
   },
-  addButton: {
+  actionButtons: {
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginLeft: SPACING.sm,
-    marginRight: SPACING.xs,
-  },
-  removeButton: {
-    marginLeft: SPACING.sm,
-    marginRight: SPACING.xs,
   },
   playButton: {
-    marginLeft: SPACING.xs,
+    marginBottom: SPACING.xs,
   },
+  addToPlaylistButton: {
+    padding: SPACING.xs,
+  },
+  
+  // Styles pour le modal
   modalContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
     backgroundColor: COLORS.background,
-    borderRadius: 12,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: SPACING.lg,
-    width: '80%',
     maxHeight: '80%',
   },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-  },
   modalTitle: {
-    flex: 1,
     textAlign: 'center',
+    marginBottom: SPACING.lg,
   },
-  closeButton: {
-    padding: SPACING.sm,
-  },
-  createPlaylistOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  createPlaylistText: {
-    marginLeft: SPACING.md,
-    color: COLORS.primary,
-  },
-  playlistsList: {
-    marginTop: SPACING.md,
+  playlistList: {
+    marginBottom: SPACING.md,
   },
   playlistItem: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SPACING.md,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  playlistIcon: {
-    marginRight: SPACING.md,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   playlistName: {
     flex: 1,
   },
-  episodeCount: {
-    color: COLORS.textSecondary,
-    marginLeft: SPACING.sm,
-  },
-  emptyContainer: {
-    padding: SPACING.xl,
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: COLORS.textSecondary,
+  emptyListText: {
     textAlign: 'center',
+    color: COLORS.textSecondary,
+    marginVertical: SPACING.lg,
+  },
+  createNewPlaylistButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  createNewPlaylistText: {
+    marginLeft: SPACING.sm,
+    color: COLORS.primary,
   },
   createPlaylistContainer: {
-    padding: SPACING.md,
+    marginBottom: SPACING.lg,
   },
-  input: {
-    backgroundColor: COLORS.cardBackground,
-    color: COLORS.text,
+  playlistNameInput: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 8,
     padding: SPACING.md,
     marginBottom: SPACING.md,
+    color: COLORS.text,
   },
-  createPlaylistButtons: {
+  createPlaylistButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  modalButton: {
+  createPlaylistButton: {
     flex: 1,
-    padding: SPACING.md,
+    paddingVertical: SPACING.sm,
     borderRadius: 8,
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: COLORS.cardBackground,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     marginRight: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
   },
-  createButton: {
+  confirmButton: {
     backgroundColor: COLORS.primary,
     marginLeft: SPACING.sm,
   },
-  createButtonText: {
-    color: COLORS.background,
+  buttonText: {
+    color: COLORS.text,
+  },
+  closeModalButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    padding: SPACING.md,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  closeModalText: {
+    color: COLORS.text,
   },
 });
+
+// Fonction utilitaire pour obtenir le style selon le statut
+const getStatusTagStyle = (status: EpisodeStatus): any => {
+  switch (status) {
+    case EpisodeStatus.LISTENED:
+      return { borderColor: COLORS.success };
+    case EpisodeStatus.LISTENING:
+      return { borderColor: COLORS.primary };
+    default:
+      return { borderColor: COLORS.tertiary };
+  }
+};

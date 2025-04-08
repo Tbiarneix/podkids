@@ -8,7 +8,7 @@ import {
   Image,
   FlatList
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '../components/Typography';
@@ -16,16 +16,10 @@ import { Avatar } from '../components/Avatar';
 import { COLORS, SPACING } from '../utils/theme';
 import { RootStackParamList } from '../types/navigation';
 import { PodcastService } from '../services/PodcastService';
-import { ProfileService } from '../services/ProfileService';
-import { Episode, EpisodeStatus, PodcastType, PodcastTypeDescription } from '../types/podcast';
-import { Profile } from '../types/profile';
+import { Episode, EpisodeStatus, PodcastType, PodcastTypeDescription, EpisodeState } from '../types/podcast';
+import { useActiveProfile } from '../contexts/ActiveProfileContext';
 
 type HomeProfileScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  'HomeProfile'
->;
-
-type HomeProfileScreenRouteProp = RouteProp<
   RootStackParamList,
   'HomeProfile'
 >;
@@ -33,16 +27,15 @@ type HomeProfileScreenRouteProp = RouteProp<
 interface ContinueListeningEpisode extends Episode {
   podcastName: string;
   podcastId: string;
+  timestamp: number;
 }
 
 export const HomeProfileScreen: React.FC = () => {
   const navigation = useNavigation<HomeProfileScreenNavigationProp>();
-  const route = useRoute<HomeProfileScreenRouteProp>();
-  const { profileId } = route.params || {};
+  const { activeProfile } = useActiveProfile();
 
   const [listeningEpisodes, setListeningEpisodes] = useState<ContinueListeningEpisode[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
   const [podcastTypeWithContent, setPodcastTypeWithContent] = useState<PodcastType[]>([]);
   
   // Créer un tableau des types de podcasts pour la section "Découvrir"
@@ -54,29 +47,41 @@ export const HomeProfileScreen: React.FC = () => {
 
   useEffect(() => {
     const loadListeningEpisodes = async () => {
+      if (!activeProfile) return;
+      
       try {
         setLoading(true);
-        
-        // Récupérer les détails du profil si un profileId est fourni
-        if (profileId) {
-          const profileDetails = await ProfileService.getProfileById(profileId);
-          setActiveProfile(profileDetails);
-        }
         
         // Récupérer tous les podcasts
         const podcasts = await PodcastService.getPodcasts();
         
-        // Récupérer tous les épisodes en cours d'écoute
+        // Récupérer tous les épisodes en cours d'écoute pour le profil actif
         const listeningEps: ContinueListeningEpisode[] = [];
         
         podcasts.forEach(podcast => {
           const podcastListeningEpisodes = podcast.episodes
-            .filter(episode => episode.status === EpisodeStatus.LISTENING)
-            .map(episode => ({
-              ...episode,
-              podcastName: podcast.name,
-              podcastId: podcast.id
-            }));
+            .filter(episode => {
+              // Trouver l'état de l'épisode pour le profil actif
+              const episodeState = episode.status?.find(
+                (state: EpisodeState) => state.profileId === activeProfile.id
+              );
+              // Vérifier si l'épisode est en cours d'écoute pour ce profil
+              return episodeState?.status === EpisodeStatus.LISTENING;
+            })
+            .map(episode => {
+              // Récupérer le timestamp pour le profil actif
+              const episodeState = episode.status?.find(
+                (state: EpisodeState) => state.profileId === activeProfile.id
+              );
+              
+              return {
+                ...episode,
+                podcastName: podcast.name,
+                podcastId: podcast.id,
+                // Utiliser le timestamp du profil actif
+                timestamp: episodeState?.timestamp || 0
+              };
+            });
           
           listeningEps.push(...podcastListeningEpisodes);
         });
@@ -102,7 +107,11 @@ export const HomeProfileScreen: React.FC = () => {
         
         // Pour chaque type de podcast, vérifier s'il existe au moins un podcast de ce type
         for (const type of Object.values(PodcastType)) {
-          const podcastsOfType = await PodcastService.getPodcastsByType(type);
+          // Filtrer les podcasts par type
+          const podcastsOfType = podcasts.filter(podcast => 
+            podcast.types.includes(type)
+          );
+          
           if (podcastsOfType.length > 0) {
             typesWithContent.push(type);
           }
@@ -117,7 +126,7 @@ export const HomeProfileScreen: React.FC = () => {
     };
     
     loadListeningEpisodes();
-  }, []);
+  }, [activeProfile]); // Recharger lorsque le profil actif change
 
   const handleEpisodePress = (episode: ContinueListeningEpisode) => {
     // Navigation vers la fiche détaillée de l'épisode
@@ -128,24 +137,24 @@ export const HomeProfileScreen: React.FC = () => {
   };
 
   const handleLibraryPress = () => {
-    // Navigation vers la bibliothèque
+    // Navigation vers la bibliothèque avec l'ID du profil actif
     navigation.navigate('Library', {
-      profileId: profileId || ''
+      profileId: activeProfile?.id || ''
     });
   };
 
   const handlePlaylistsPress = () => {
-    // Navigation vers les playlists
+    // Navigation vers les playlists avec l'ID du profil actif
     navigation.navigate('Playlists', {
-      profileId: profileId || ''
+      profileId: activeProfile?.id || ''
     });
   };
 
   const handleDiscoverPress = (podcastType: PodcastType) => {
-    // Navigation vers la découverte par thématique
+    // Navigation vers la découverte par thématique avec l'ID du profil actif
     navigation.navigate('ThemePodcasts', {
       theme: podcastType,
-      profileId: profileId || ''
+      profileId: activeProfile?.id || ''
     });
   };
 
@@ -169,6 +178,24 @@ export const HomeProfileScreen: React.FC = () => {
     </TouchableOpacity>
   );
 
+  if (!activeProfile) {
+    return (
+      <SafeAreaView style={[styles.container, styles.centerContent]}>
+        <Typography variant="subtitle" style={styles.emptyStateText}>
+          Aucun profil actif. Veuillez sélectionner un profil.
+        </Typography>
+        <TouchableOpacity 
+          style={styles.selectProfileButton}
+          onPress={() => navigation.navigate('ChangeProfile', {})}
+        >
+          <Typography variant="body" style={styles.selectProfileButtonText}>
+            Sélectionner un profil
+          </Typography>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -178,18 +205,11 @@ export const HomeProfileScreen: React.FC = () => {
             onPress={() => navigation.navigate('ChangeProfile', {})}
             style={styles.avatarContainer}
           >
-            {activeProfile ? (
-              <Avatar
-                size={60}
-                avatarIndex={activeProfile.avatar}
-                disabled
-              />
-            ) : (
-              <Image 
-                source={require('../../assets/avatar.png')}
-                style={styles.avatar}
-              />
-            )}
+            <Avatar
+              size={60}
+              avatarIndex={activeProfile.avatar}
+              disabled
+            />
           </TouchableOpacity>
           <TouchableOpacity style={styles.searchButton}>
             <Ionicons name="search" size={24} color={COLORS.text} />
@@ -282,6 +302,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  selectProfileButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderRadius: 8,
+    marginTop: SPACING.lg,
+  },
+  selectProfileButtonText: {
+    color: COLORS.text,
+    fontWeight: 'bold',
+  },
   scrollContent: {
     paddingBottom: SPACING.xxxl,
   },
@@ -349,24 +385,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   spaceItem: {
-    width: '48%',
-    height: 150,
-    borderRadius: 12,
-    padding: SPACING.lg,
-    justifyContent: 'center',
+    flex: 1,
+    marginHorizontal: SPACING.xs,
+    paddingVertical: SPACING.lg,
+    borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   spaceItemText: {
-    color: '#000000',
+    color: COLORS.text,
     textAlign: 'center',
   },
   discoverContainer: {
-    marginTop: SPACING.md,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
   discoverItem: {
+    width: '48%',
     backgroundColor: COLORS.cardBackground,
-    borderRadius: 12,
-    padding: SPACING.lg,
+    borderRadius: 8,
+    padding: SPACING.md,
     marginBottom: SPACING.md,
   },
   discoverItemTitle: {

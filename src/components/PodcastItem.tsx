@@ -1,8 +1,9 @@
 import React from 'react';
 import { StyleSheet, View, TouchableOpacity, Image } from 'react-native';
-import { Podcast } from '../types/podcast';
+import { Podcast, PodcastSubscription } from '../types/podcast';
 import { Typography } from './Typography';
 import { COLORS, SPACING } from '../utils/theme';
+import { useActiveProfile } from '../contexts/ActiveProfileContext';
 
 interface PodcastItemProps {
   podcast: Podcast;
@@ -19,6 +20,13 @@ export const PodcastItem: React.FC<PodcastItemProps> = ({
   showThemeTag = true,
   showEpisodeCount = false
 }) => {
+  const { activeProfile } = useActiveProfile();
+  
+  // Vérifier si le profil actif est abonné à ce podcast
+  const isSubscribed = podcast.subscription?.some(
+    sub => sub.profileId === activeProfile?.id && sub.subscription
+  ) || false;
+
   return (
     <TouchableOpacity 
       style={styles.podcastItem}
@@ -46,7 +54,7 @@ export const PodcastItem: React.FC<PodcastItemProps> = ({
           <TouchableOpacity 
             style={[
               styles.subscriptionTag, 
-              podcast.subscription ? styles.subscribedTag : {}
+              isSubscribed ? styles.subscribedTag : {}
             ]}
             onPress={() => onToggleSubscription(podcast.id)}
           >
@@ -54,10 +62,10 @@ export const PodcastItem: React.FC<PodcastItemProps> = ({
               variant="caption" 
               style={[
                 styles.tagText, 
-                podcast.subscription ? styles.subscribedTagText : {}
+                isSubscribed ? styles.subscribedTagText : {}
               ]}
             >
-              {podcast.subscription ? 'Abonné' : 'S\'abonner'}
+              {isSubscribed ? 'Abonné' : 'S\'abonner'}
             </Typography>
           </TouchableOpacity>
           
@@ -80,63 +88,64 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardBackground,
     borderRadius: 12,
     marginBottom: SPACING.md,
-    overflow: 'hidden',
-    padding: SPACING.md,
-    elevation: 3,
+    padding: SPACING.sm,
+    elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
   },
   podcastCover: {
-    width: 100,
-    height: 100,
+    width: 80,
+    height: 80,
     borderRadius: 8,
+    marginRight: SPACING.md,
   },
   podcastInfo: {
     flex: 1,
-    marginLeft: SPACING.md,
     justifyContent: 'space-between',
   },
   podcastName: {
     fontWeight: 'bold',
+    marginBottom: 2,
   },
   podcastAuthor: {
     color: COLORS.textSecondary,
+    marginBottom: 4,
   },
   episodeCount: {
     color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
+    marginBottom: 4,
+    fontSize: 12,
   },
   tagsContainer: {
     flexDirection: 'row',
-    marginTop: SPACING.sm,
+    marginTop: 'auto',
   },
   subscriptionTag: {
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: COLORS.primary,
-    borderRadius: 20,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    borderRadius: 12,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
     marginRight: SPACING.sm,
   },
   subscribedTag: {
     backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   themeTag: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: COLORS.text,
-    borderRadius: 20,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    backgroundColor: COLORS.tertiary,
+    borderRadius: 12,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
   },
   tagText: {
-    color: COLORS.text,
-    fontSize: 12,
+    color: COLORS.primary,
+    fontSize: 10,
   },
   subscribedTagText: {
-    color: COLORS.background,
+    color: COLORS.text,
   },
 });

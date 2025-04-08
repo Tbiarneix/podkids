@@ -9,36 +9,29 @@ import {
   ActivityIndicator,
   Modal
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '../components/Typography';
 import { PodcastItem } from '../components/PodcastItem';
 import { COLORS, SPACING, SIZES } from '../utils/theme';
 import { PodcastService } from '../services/PodcastService';
-import { ProfileService } from '../services/ProfileService';
 import { RootStackParamList } from '../types/navigation';
 import { Podcast, PodcastType } from '../types/podcast';
+import { useActiveProfile } from '../contexts/ActiveProfileContext';
 
 type LibraryScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   'Library'
 >;
 
-type LibraryScreenRouteProp = RouteProp<
-  RootStackParamList,
-  'Library'
->;
-
 export const LibraryScreen: React.FC = () => {
   const navigation = useNavigation<LibraryScreenNavigationProp>();
-  const route = useRoute<LibraryScreenRouteProp>();
-  const { profileId } = route.params;
+  const { activeProfile } = useActiveProfile();
 
   const [loading, setLoading] = useState(true);
   const [podcasts, setPodcasts] = useState<Podcast[]>([]);
   const [filteredPodcasts, setFilteredPodcasts] = useState<Podcast[]>([]);
-  const [profileAgeRanges, setProfileAgeRanges] = useState<string[]>([]);
   const [selectedTheme, setSelectedTheme] = useState<string>("Tous les thèmes");
   const [showThemeModal, setShowThemeModal] = useState(false);
 
@@ -46,28 +39,26 @@ export const LibraryScreen: React.FC = () => {
   const podcastThemes = ["Tous les thèmes", ...Object.values(PodcastType)];
 
   useEffect(() => {
-    const loadData = async () => {
+    const loadPodcasts = async () => {
+      if (!activeProfile) return;
+      
       try {
         setLoading(true);
-        
-        // Charger le profil pour obtenir les tranches d'âge
-        const profile = await ProfileService.getProfileById(profileId);
-        if (profile) {
-          setProfileAgeRanges(profile.ageRanges);
-        }
         
         // Charger tous les podcasts
         const allPodcasts = await PodcastService.getPodcasts();
         
-        // Filtrer les podcasts par tranche d'âge et abonnement
+        // Filtrer les podcasts par tranche d'âge et abonnement pour le profil actif
         const libraryPodcasts = allPodcasts.filter(podcast => {
           // Vérifier si le podcast est adapté à l'âge du profil
           const hasMatchingAgeRange = podcast.ageRanges.some(ageRange => 
-            profile?.ageRanges.includes(ageRange)
+            activeProfile.ageRanges.includes(ageRange)
           );
           
-          // Vérifier si l'utilisateur est abonné au podcast
-          const isSubscribed = podcast.subscription === true;
+          // Vérifier si le profil actif est abonné au podcast
+          const isSubscribed = podcast.subscription?.some(
+            sub => sub.profileId === activeProfile.id && sub.subscription
+          ) || false;
           
           return hasMatchingAgeRange && isSubscribed;
         });
@@ -81,8 +72,8 @@ export const LibraryScreen: React.FC = () => {
       }
     };
     
-    loadData();
-  }, [profileId]);
+    loadPodcasts();
+  }, [activeProfile]);
 
   // Filtrer les podcasts par thème sélectionné
   useEffect(() => {
@@ -106,21 +97,28 @@ export const LibraryScreen: React.FC = () => {
 
   const toggleSubscription = async (podcastId: string) => {
     try {
-      // Mettre à jour l'abonnement au podcast
-      const updatedPodcasts = podcasts.map(podcast => {
-        if (podcast.id === podcastId) {
-          return {
-            ...podcast,
-            subscription: !podcast.subscription
-          };
-        }
-        return podcast;
+      if (!activeProfile) return;
+      
+      // Appeler le service pour mettre à jour l'abonnement
+      await PodcastService.toggleSubscription(podcastId, activeProfile.id);
+      
+      // Recharger les podcasts après la mise à jour
+      const allPodcasts = await PodcastService.getPodcasts();
+      
+      // Appliquer à nouveau les filtres
+      const libraryPodcasts = allPodcasts.filter(podcast => {
+        const hasMatchingAgeRange = podcast.ageRanges.some(ageRange => 
+          activeProfile.ageRanges.includes(ageRange)
+        );
+        
+        const isSubscribed = podcast.subscription?.some(
+          sub => sub.profileId === activeProfile.id && sub.subscription
+        ) || false;
+        
+        return hasMatchingAgeRange && isSubscribed;
       });
       
-      setPodcasts(updatedPodcasts);
-      
-      // Dans une implémentation réelle, nous appellerions le service comme ceci:
-      // await PodcastService.togglePodcastSubscription(podcastId);
+      setPodcasts(libraryPodcasts);
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l\'abonnement:', error);
     }
@@ -161,6 +159,24 @@ export const LibraryScreen: React.FC = () => {
     </TouchableOpacity>
   );
 
+  if (!activeProfile) {
+    return (
+      <SafeAreaView style={[styles.container, styles.centerContent]}>
+        <Typography variant="subtitle" style={styles.emptyText}>
+          Aucun profil actif. Veuillez sélectionner un profil.
+        </Typography>
+        <TouchableOpacity 
+          style={styles.selectProfileButton}
+          onPress={() => navigation.navigate('ChangeProfile', { initialProfileId: undefined })}
+        >
+          <Typography variant="body" style={styles.selectProfileButtonText}>
+            Sélectionner un profil
+          </Typography>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -200,36 +216,50 @@ export const LibraryScreen: React.FC = () => {
 
       {filteredPodcasts.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Typography variant="body" center>
-            Aucun podcast trouvé dans votre bibliothèque.
+          <Image 
+            source={require('../../assets/empty_library.png')} 
+            style={styles.emptyImage}
+          />
+          <Typography variant="subtitle" style={styles.emptyTitle}>
+            Ta bibliothèque est vide
           </Typography>
+          <Typography variant="body" style={styles.emptyText}>
+            Abonne-toi à des podcasts pour les retrouver ici
+          </Typography>
+          <TouchableOpacity 
+            style={styles.discoverButton}
+            onPress={() => navigation.navigate('HomeProfile', { profileId: '' })}
+          >
+            <Typography variant="body" style={styles.discoverButtonText}>
+              Découvrir des podcasts
+            </Typography>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
           data={filteredPodcasts}
           renderItem={renderPodcastItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.podcastsList}
         />
       )}
 
-      {/* Modal pour sélectionner le thème */}
+      {/* Modal pour la sélection des thèmes */}
       <Modal
         visible={showThemeModal}
         transparent={true}
         animationType="slide"
         onRequestClose={() => setShowThemeModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Typography variant="subtitle" style={styles.modalTitle}>
                 Filtrer par thème
               </Typography>
               <TouchableOpacity 
-                style={styles.closeButton}
                 onPress={() => setShowThemeModal(false)}
+                style={styles.closeButton}
               >
                 <Ionicons name="close" size={24} color={COLORS.text} />
               </TouchableOpacity>
@@ -237,7 +267,7 @@ export const LibraryScreen: React.FC = () => {
             <FlatList
               data={podcastThemes}
               renderItem={renderThemeItem}
-              keyExtractor={item => item}
+              keyExtractor={(item) => item}
               contentContainerStyle={styles.themesList}
             />
           </View>
@@ -252,12 +282,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  selectProfileButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderRadius: 8,
+    marginTop: SPACING.lg,
+  },
+  selectProfileButtonText: {
+    color: COLORS.text,
+    fontWeight: 'bold',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: SPACING.xxxl,
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
   },
   backButton: {
@@ -266,10 +311,30 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     textAlign: 'center',
-    color: COLORS.text,
   },
   placeholder: {
-    width: 40,
+    width: 40, // Même taille que le bouton retour pour équilibrer
+  },
+  filterContainer: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+  },
+  themeFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.cardBackground,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: 20,
+  },
+  filterButtonText: {
+    color: COLORS.primary,
+    marginRight: SPACING.xs,
+  },
+  podcastsList: {
+    padding: SPACING.lg,
   },
   loadingContainer: {
     flex: 1,
@@ -278,31 +343,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: SPACING.md,
-    color: COLORS.text,
-  },
-  filterContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.md,
-  },
-  themeFilterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 20,
-    marginHorizontal: SPACING.sm,
-  },
-  filterButtonText: {
-    color: COLORS.primary,
-    marginRight: SPACING.sm,
-  },
-  listContent: {
-    padding: SPACING.md,
+    color: COLORS.textSecondary,
   },
   emptyContainer: {
     flex: 1,
@@ -310,42 +351,62 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.lg,
   },
-  modalOverlay: {
+  emptyImage: {
+    width: 150,
+    height: 150,
+    marginBottom: SPACING.lg,
+  },
+  emptyTitle: {
+    marginBottom: SPACING.sm,
+  },
+  emptyText: {
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: SPACING.lg,
+  },
+  discoverButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md,
+    borderRadius: 8,
+  },
+  discoverButtonText: {
+    color: COLORS.text,
+  },
+  modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
     backgroundColor: COLORS.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 20,
+    padding: SPACING.lg,
     maxHeight: '70%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    marginBottom: SPACING.lg,
   },
   modalTitle: {
-    color: COLORS.text,
+    flex: 1,
   },
   closeButton: {
-    padding: SPACING.sm,
+    padding: SPACING.xs,
   },
   themesList: {
-    padding: SPACING.md,
+    paddingBottom: SPACING.lg,
   },
   themeItem: {
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: COLORS.cardBackground,
   },
   selectedThemeItem: {
-    backgroundColor: COLORS.cardBackground,
+    backgroundColor: 'rgba(0, 123, 255, 0.1)',
   },
   themeItemText: {
     color: COLORS.text,
