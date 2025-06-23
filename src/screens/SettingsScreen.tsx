@@ -127,9 +127,6 @@ export const SettingsScreen: React.FC = () => {
               // Vider le stockage
               await StorageUtils.clearAllStorage();
               
-              // Recharger les podcasts depuis la bibliothèque par défaut
-              await PodcastService.initializeDefaultPodcasts();
-              
               // Masquer l'écran de chargement
               setIsResetting(false);
               

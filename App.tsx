@@ -60,9 +60,6 @@ function MainApp() {
   useEffect(() => {
     const checkAppState = async () => {
       try {
-        // Initialiser la bibliothèque de podcasts par défaut si nécessaire
-        await PodcastService.initializeDefaultPodcasts();
-        
         // Vérifier si un code PIN est configuré
         const isPinConfigured = await PinService.isPinConfigured();
         
