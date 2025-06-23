@@ -45,8 +45,8 @@ export const PinCodeScreen: React.FC = () => {
             // Stocker le PIN avec notre service
             await PinService.storePin(pin);
             
-            // Naviguer vers l'écran de vérification
-            navigation.navigate('PinVerification');
+            // Naviguer directement vers l'écran des paramètres
+            navigation.navigate('Settings', {});
           } catch (e) {
             console.error('Erreur lors du stockage du PIN:', e);
             setError('Erreur lors de la création du PIN. Veuillez réessayer.');
