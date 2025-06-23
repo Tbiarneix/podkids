@@ -207,7 +207,18 @@ export class RssParserService {
     const regex = new RegExp(`<${tagName}[^>]*>(.*?)<\/${tagName}>`, 'is');
     const match = regex.exec(xmlContent);
     if (match && match[1]) {
-      return this.decodeXmlEntities(match[1].trim());
+      // Extraire le contenu et traiter les sections CDATA
+      let content = match[1].trim();
+      content = this.extractCdataContent(content);
+      
+      // Décoder les entités XML
+      const decodedContent = this.decodeXmlEntities(content);
+      
+      // Nettoyer les balises HTML pour les champs textuels
+      if (['description', 'content', 'contentEncoded', 'itunesSummary', 'itunesSubtitle', 'title'].includes(tagName)) {
+        return this.stripHtmlTags(decodedContent);
+      }
+      return decodedContent;
     }
     return undefined;
   }
@@ -269,13 +280,91 @@ export class RssParserService {
    * @returns Texte décodé
    */
   private static decodeXmlEntities(text: string): string {
-    return text
+    if (!text) return text;
+    
+    // Entités XML standard
+    let decoded = text
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
-      .replace(/&apos;/g, "'")
+      .replace(/&apos;/g, "'");
+    
+    // Entités HTML courantes
+    decoded = decoded
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&ensp;/g, ' ')
+      .replace(/&emsp;/g, ' ')
+      .replace(/&ndash;/g, '-')
+      .replace(/&mdash;/g, '—')
+      .replace(/&lsquo;/g, "'")
+      .replace(/&rsquo;/g, "'")
+      .replace(/&sbquo;/g, ',')
+      .replace(/&ldquo;/g, '"')
+      .replace(/&rdquo;/g, '"')
+      .replace(/&bdquo;/g, '"')
+      .replace(/&laquo;/g, '<<')
+      .replace(/&raquo;/g, '>>')
+      .replace(/&bull;/g, '*')
+      .replace(/&hellip;/g, '...')
+      .replace(/&copy;/g, '(c)')
+      .replace(/&reg;/g, '(r)')
+      .replace(/&trade;/g, '(tm)')
+      .replace(/&euro;/g, 'EUR')
+      .replace(/&pound;/g, 'GBP')
+      .replace(/&yen;/g, 'JPY')
+      .replace(/&cent;/g, 'c');
+    
+    // Entités numériques
+    decoded = decoded
       .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
       .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+    
+    return decoded;
+  }
+  
+  /**
+   * Nettoie les balises HTML d'un texte
+   * @param text Texte contenant potentiellement des balises HTML
+   * @returns Texte nettoyé sans balises HTML
+   */
+  private static stripHtmlTags(text: string): string {
+    if (!text) return text;
+    
+    // Extraire le contenu des sections CDATA si présentes
+    text = this.extractCdataContent(text);
+    
+    // Remplacer les balises <br>, <p>, <div> par des sauts de ligne
+    let cleanedText = text
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>\s*<p[^>]*>/gi, '\n\n')
+      .replace(/<p[^>]*>/gi, '')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<\/div>\s*<div[^>]*>/gi, '\n')
+      .replace(/<div[^>]*>/gi, '')
+      .replace(/<\/div>/gi, '\n');
+    
+    // Supprimer toutes les autres balises HTML
+    cleanedText = cleanedText.replace(/<[^>]*>/g, '');
+    
+    // Supprimer les espaces multiples et les sauts de ligne multiples
+    cleanedText = cleanedText
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/[ \t]+/g, ' ')
+      .trim();
+    
+    return cleanedText;
+  }
+  
+  /**
+   * Extrait le contenu des sections CDATA
+   * @param text Texte pouvant contenir des sections CDATA
+   * @returns Texte avec les sections CDATA extraites
+   */
+  private static extractCdataContent(text: string): string {
+    if (!text) return text;
+    
+    // Extraire le contenu des sections CDATA
+    return text.replace(/<!\[CDATA\[(.*?)\]\]>/gs, (_, cdataContent) => cdataContent);
   }
 }
