@@ -526,6 +526,156 @@ export class PodcastService {
   }
 
   /**
+   * Initialise les podcasts pour les tranches d'âge spécifiées
+   * @param ageRanges Les tranches d'âge pour lesquelles charger les podcasts
+   * @returns Les podcasts chargés
+   */
+  static async initializePodcastsForAgeRanges(ageRanges: AgeRange[]): Promise<Podcast[]> {
+    try {
+      console.log('Initialisation des podcasts pour les tranches d\'âge:', ageRanges);
+      
+      // Filtrer les podcasts de la bibliothèque par tranches d'âge
+      const filteredPodcasts = libraryData.filter(podcastData => {
+        // Vérifier si au moins une tranche d'âge du podcast correspond aux tranches d'âge demandées
+        return podcastData.AgeRange.some((ageRangeKey: string) => {
+          // Convertir la clé de l'enum en valeur de l'enum
+          if (ageRangeKey in AgeRange) {
+            const ageRange = AgeRange[ageRangeKey as keyof typeof AgeRange];
+            return ageRanges.includes(ageRange);
+          }
+          return false;
+        });
+      });
+      
+      console.log(`${filteredPodcasts.length} podcasts trouvés pour les tranches d'âge spécifiées`);
+      
+      // Récupérer les podcasts existants pour éviter les doublons
+      const existingPodcasts = await this.getPodcasts();
+      const existingUrls = new Set(existingPodcasts.map(p => p.url));
+      
+      // Podcasts à ajouter (ceux qui n'existent pas déjà)
+      const podcastsToAdd = filteredPodcasts.filter(p => !existingUrls.has(p.url));
+      console.log(`${podcastsToAdd.length} nouveaux podcasts à ajouter`);
+      
+      // Ajouter les nouveaux podcasts
+      const addedPodcastIds: string[] = [];
+      const addedPodcasts: Podcast[] = [];
+      
+      for (const podcastData of podcastsToAdd) {
+        try {
+          // Convertir les tranches d'âge du format JSON en enum AgeRange
+          const podcastAgeRanges: AgeRange[] = [];
+          for (const ageRangeKey of podcastData.AgeRange) {
+            if (ageRangeKey in AgeRange) {
+              podcastAgeRanges.push(AgeRange[ageRangeKey as keyof typeof AgeRange]);
+            }
+          }
+          
+          // Convertir les types de podcast du format JSON en enum PodcastType
+          const podcastTypes: PodcastType[] = [];
+          for (const typeKey of podcastData.PodcastType) {
+            if (typeKey in PodcastType) {
+              podcastTypes.push(PodcastType[typeKey as keyof typeof PodcastType]);
+            }
+          }
+          
+          // Récupérer le flux RSS
+          const feed = await this.fetchRssFeed(podcastData.url);
+          
+          // Créer le nouveau podcast avec ses épisodes
+          const newPodcast: Podcast = {
+            id: generateUniqueId(),
+            name: podcastData.name || feed.title || 'Podcast sans titre',
+            description: feed.description || '',
+            cover: feed.imageUrl || feed.itunesImage || '',
+            url: podcastData.url,
+            author: podcastData.author || feed.itunesOwnerName || feed.itunesAuthor || 'Auteur inconnu',
+            types: podcastTypes,
+            ageRanges: podcastAgeRanges,
+            subscription: false,
+            deleteable: podcastData.deleteable !== undefined ? podcastData.deleteable : true,
+            episodes: feed.items.map((item: RssFeedItem) => ({
+              id: generateUniqueId(),
+              name: item.title || 'Épisode sans titre',
+              description: item.description || item.contentEncoded || item.content || '',
+              cover: item.itunesImage || feed.imageUrl || feed.itunesImage || '',
+              url: item.enclosureUrl || '',
+              duration: convertDurationToSeconds(item.itunesDuration),
+              status: EpisodeStatus.TO_LISTEN,
+              timestamp: 0,
+              publicationDate: item.pubDate ? new Date(item.pubDate).getTime() : Date.now()
+            })),
+            episodeCount: feed.items.length,
+            hasEpisodesStored: true
+          };
+          
+          // Stocker le podcast
+          await AsyncStorage.setItem(`${PODCAST_PREFIX}${newPodcast.id}`, JSON.stringify(newPodcast));
+          addedPodcastIds.push(newPodcast.id);
+          addedPodcasts.push(newPodcast);
+          
+        } catch (error) {
+          console.error(`Erreur lors de l'ajout du podcast ${podcastData.name}:`, error);
+        }
+      }
+      
+      // Mettre à jour la liste des IDs de podcasts
+      const podcastIdsJson = await AsyncStorage.getItem(PODCAST_IDS_KEY);
+      const podcastIds: string[] = podcastIdsJson ? JSON.parse(podcastIdsJson) : [];
+      const updatedPodcastIds = [...podcastIds, ...addedPodcastIds];
+      await AsyncStorage.setItem(PODCAST_IDS_KEY, JSON.stringify(updatedPodcastIds));
+      
+      console.log(`${addedPodcastIds.length} podcasts ajoutés avec succès`);
+      
+      // Retourner tous les podcasts pour les tranches d'âge spécifiées (existants + nouveaux)
+      return [...existingPodcasts.filter(p => 
+        p.ageRanges.some(age => ageRanges.includes(age))
+      ), ...addedPodcasts];
+      
+    } catch (error) {
+      console.error('Erreur lors de l\'initialisation des podcasts par tranches d\'âge:', error);
+      return [];
+    }
+  }
+  
+  /**
+   * Supprime les podcasts qui ne correspondent plus aux tranches d'âge spécifiées
+   * @param ageRanges Les tranches d'âge à conserver
+   * @returns true si des podcasts ont été supprimés
+   */
+  static async removePodcastsNotInAgeRanges(ageRanges: AgeRange[]): Promise<boolean> {
+    try {
+      // Récupérer tous les podcasts
+      const podcasts = await this.getPodcasts();
+      
+      // Filtrer les podcasts qui ne correspondent à aucune des tranches d'âge spécifiées
+      const podcastsToRemove = podcasts.filter(podcast => 
+        podcast.deleteable && // Ne supprimer que les podcasts supprimables
+        !podcast.subscription && // Ne pas supprimer les podcasts favoris
+        !podcast.ageRanges.some(age => ageRanges.includes(age)) // Aucune tranche d'âge en commun
+      );
+      
+      if (podcastsToRemove.length === 0) {
+        console.log('Aucun podcast à supprimer');
+        return false;
+      }
+      
+      console.log(`${podcastsToRemove.length} podcasts à supprimer`);
+      
+      // Supprimer chaque podcast
+      for (const podcast of podcastsToRemove) {
+        await this.deletePodcast(podcast.id);
+      }
+      
+      console.log(`${podcastsToRemove.length} podcasts supprimés avec succès`);
+      return true;
+    } catch (error) {
+      console.error('Erreur lors de la suppression des podcasts:', error);
+      return false;
+    }
+  }
+
+  /**
    * Nettoie complètement toutes les données de podcasts
    * Utile en cas d'erreur "database or disk is full"
    */

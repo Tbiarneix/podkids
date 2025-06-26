@@ -79,6 +79,8 @@ export interface Podcast {
   subscription: boolean;
   episodes: Episode[];
   deleteable: boolean;
+  episodeCount?: number;
+  hasEpisodesStored?: boolean;
 }
 
 export interface Playlist {

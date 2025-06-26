@@ -7,7 +7,9 @@ import {
   ScrollView, 
   TouchableOpacity,
   Text,
-  FlatList
+  FlatList,
+  ActivityIndicator,
+  Modal
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,6 +21,7 @@ import { SelectionButton } from '../components/SelectionButton';
 import { COLORS, SPACING, FONTS } from '../utils/theme';
 import { AgeRange } from '../types/podcast';
 import { ProfileService } from '../services/ProfileService';
+import { PodcastService } from '../services/PodcastService';
 import { RootStackParamList } from '../types/navigation';
 import { getAvatarIndices } from '../utils/avatarUtils';
 
@@ -32,6 +35,7 @@ export const AddProfileScreen: React.FC = () => {
   const [name, setName] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState(0);
   const [selectedAgeRanges, setSelectedAgeRanges] = useState<AgeRange[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Obtenir les indices des avatars disponibles
   const avatarIndices = getAvatarIndices();
@@ -93,12 +97,21 @@ export const AddProfileScreen: React.FC = () => {
         return;
       }
 
+      // Activer le loader
+      setIsLoading(true);
+
       // Créer le profil
       await ProfileService.createProfile({
         name: name.trim(),
         avatar: selectedAvatar,
         ageRanges: selectedAgeRanges
       });
+      
+      // Initialiser les podcasts correspondant aux tranches d'âge sélectionnées
+      await PodcastService.initializePodcastsForAgeRanges(selectedAgeRanges);
+
+      // Désactiver le loader
+      setIsLoading(false);
 
       // Afficher une notification de succès et rediriger vers Settings
       navigation.navigate('Notification', {
@@ -108,6 +121,9 @@ export const AddProfileScreen: React.FC = () => {
       });
     } catch (error) {
       console.error('Erreur lors de la création du profil:', error);
+      
+      // Désactiver le loader en cas d'erreur
+      setIsLoading(false);
       
       // Afficher une notification d'erreur
       navigation.navigate('Notification', {
@@ -119,6 +135,22 @@ export const AddProfileScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Modal de chargement */}
+      <Modal
+        visible={isLoading}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Typography variant="body" style={styles.loadingText}>
+              Création du profil en cours...
+            </Typography>
+          </View>
+        </View>
+      </Modal>
+      
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
@@ -198,6 +230,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  loadingContainer: {
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 10,
+    padding: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  loadingText: {
+    marginTop: SPACING.sm,
+    color: COLORS.text,
+    textAlign: 'center',
   },
   header: {
     flexDirection: 'row',
