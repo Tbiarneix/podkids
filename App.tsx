@@ -35,6 +35,7 @@ import { RootStackParamList } from './src/types/navigation';
 import { ProfileService } from './src/services/ProfileService';
 import { PinService } from './src/services/PinService';
 import { PodcastService } from './src/services/PodcastService';
+import { EmailService } from './src/services/EmailService';
 import { PlayerProvider } from './src/contexts/PlayerContext';
 import { ToastProvider } from './src/contexts/ToastContext';
 import { PlayerBar } from './src/components/PlayerBar';
@@ -60,6 +61,9 @@ function MainApp() {
   useEffect(() => {
     const checkAppState = async () => {
       try {
+        // Initialiser le service d'email
+        EmailService.init();
+        
         // Vérifier si un code PIN est configuré
         const isPinConfigured = await PinService.isPinConfigured();
         

@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, Alert, ScrollView, Modal } from 'react-native';
+import { View, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, Alert, ScrollView, Modal, TextInput } from 'react-native';
 import { Typography } from '../components/Typography';
 import { Button } from '../components/Button';
 import { ProfileItem } from '../components/ProfileItem';
-import { COLORS, SPACING } from '../utils/theme';
+import { COLORS, SPACING, FONTS, SIZES } from '../utils/theme';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { ProfileService } from '../services/ProfileService';
 import { PodcastService } from '../services/PodcastService';
+import { EmailService } from '../services/EmailService';
 import { Profile } from '../types/profile';
 import { StorageUtils } from '../utils/StorageUtils';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -26,6 +27,9 @@ export const SettingsScreen: React.FC = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [isResetting, setIsResetting] = useState(false);
+  const [isFeedbackModalVisible, setIsFeedbackModalVisible] = useState(false);
+  const [feedbackSubject, setFeedbackSubject] = useState('');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
 
   // Charger les profils à chaque fois que l'écran est affiché
   useFocusEffect(
@@ -93,6 +97,44 @@ export const SettingsScreen: React.FC = () => {
 
   const handleEditPodcast = () => {
     navigation.navigate('PodcastList');
+  };
+  
+  const handleOpenFeedbackModal = () => {
+    setFeedbackSubject('');
+    setFeedbackMessage('');
+    setIsFeedbackModalVisible(true);
+  };
+  
+  const handleCloseFeedbackModal = () => {
+    setIsFeedbackModalVisible(false);
+  };
+  
+  const handleSendFeedback = async () => {
+    // Vérifier que les champs ne sont pas vides
+    if (!feedbackSubject.trim()) {
+      showToast('Veuillez entrer un sujet', 'error');
+      return;
+    }
+    
+    if (!feedbackMessage.trim()) {
+      showToast('Veuillez entrer un message', 'error');
+      return;
+    }
+    
+    try {
+      // Envoyer l'email via le service (ouvre l'application de messagerie)
+      await EmailService.sendFeedbackEmail({
+        subject: feedbackSubject,
+        message: feedbackMessage
+      });
+      
+      // Fermer la modale et afficher un message
+      handleCloseFeedbackModal();
+      showToast('Application de messagerie ouverte', 'success');
+    } catch (error) {
+      console.error('Erreur lors de l\'ouverture de l\'application de messagerie:', error);
+      showToast(error instanceof Error ? error.message : 'Erreur lors de l\'ouverture de l\'application de messagerie', 'error');
+    }
   };
 
   const handleEditProfile = (profile: Profile) => {
@@ -195,6 +237,56 @@ export const SettingsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Modale de feedback */}
+      <Modal
+        visible={isFeedbackModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCloseFeedbackModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Typography variant="title" style={styles.modalTitle}>Faire un retour</Typography>
+            
+            <Typography variant="body" style={styles.inputLabel}>Sujet</Typography>
+            <TextInput
+              style={styles.inputShort}
+              value={feedbackSubject}
+              onChangeText={setFeedbackSubject}
+              placeholder="Entrez le sujet"
+              placeholderTextColor="rgba(255, 255, 255, 0.5)"
+            />
+            
+            <Typography variant="body" style={styles.inputLabel}>Message</Typography>
+            <TextInput
+              style={styles.inputLong}
+              value={feedbackMessage}
+              onChangeText={setFeedbackMessage}
+              placeholder="Entrez votre message"
+              placeholderTextColor="rgba(255, 255, 255, 0.5)"
+              multiline={true}
+              numberOfLines={10}
+              textAlignVertical="top"
+            />
+            
+            <View style={styles.modalButtons}>
+              <Button
+                title="Annuler"
+                variant="outline"
+                onPress={handleCloseFeedbackModal}
+                style={styles.modalButton}
+              />
+              <Button
+                title="Envoyer"
+                variant="primary"
+                onPress={handleSendFeedback}
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+      
       {isResetting ? (
         <LoadingScreen message="Réinitialisation de l'application" />
       ) : (
@@ -253,10 +345,20 @@ export const SettingsScreen: React.FC = () => {
               <View style={styles.section}>
                 {renderSettingItem('Importer/Exporter des paramètres', () => console.log('Importer/Exporter des paramètres'), false, false, true)}
               </View>
-
+              
               <View style={styles.section}>
-                {renderSettingItem('Vider le stockage', handleClearStorage, true, true)}
+                <Button
+                  title="Faites nous vos retours"
+                  variant="primary"
+                  fullWidth
+                  onPress={handleOpenFeedbackModal}
+                  style={styles.feedbackButton}
+                />
               </View>
+
+              {/* <View style={styles.section}>
+                {renderSettingItem('Vider le stockage', handleClearStorage, true, true)}
+              </View> */}
             </View>
           </ScrollView>
         </>
@@ -312,11 +414,63 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   disabledItem: {
-    opacity: 0.7,
+    opacity: 0.5,
+  },
+  feedbackButton: {
+    marginVertical: SPACING.md,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  modalContent: {
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 16,
+    padding: SPACING.lg,
+    width: '100%',
+    maxWidth: 500,
+  },
+  modalTitle: {
+    marginBottom: SPACING.lg,
+    textAlign: 'center',
+  },
+  inputLabel: {
+    marginBottom: SPACING.xs,
+  },
+  inputShort: {
+    backgroundColor: COLORS.background,
+    borderRadius: 8,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    color: COLORS.text,
+    fontFamily: FONTS.regular,
+    fontSize: SIZES.md,
+  },
+  inputLong: {
+    backgroundColor: COLORS.background,
+    borderRadius: 8,
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
+    color: COLORS.text,
+    fontFamily: FONTS.regular,
+    fontSize: SIZES.md,
+    minHeight: 350,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: SPACING.md,
+  },
+  modalButton: {
+    flex: 1,
+    marginHorizontal: SPACING.xs,
   },
   footer: {
     alignItems: 'center',
-    paddingVertical: SPACING.md,
+    marginTop: SPACING.xl,
   },
   indicator: {
     width: 100,
