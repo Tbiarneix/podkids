@@ -251,7 +251,7 @@ export const SettingsScreen: React.FC = () => {
               </View>
 
               <View style={styles.section}>
-                {renderSettingItem('Importer/Exporter des paramètres', () => console.log('Importer/Exporter des paramètres'))}
+                {renderSettingItem('Importer/Exporter des paramètres', () => console.log('Importer/Exporter des paramètres'), false, false, true)}
               </View>
 
               <View style={styles.section}>
