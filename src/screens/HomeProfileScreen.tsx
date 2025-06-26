@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -6,9 +6,10 @@ import {
   ScrollView, 
   TouchableOpacity,
   Image,
-  FlatList
+  FlatList,
+  Animated
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '../components/Typography';
@@ -17,7 +18,7 @@ import { COLORS, SPACING } from '../utils/theme';
 import { RootStackParamList } from '../types/navigation';
 import { PodcastService } from '../services/PodcastService';
 import { ProfileService } from '../services/ProfileService';
-import { Episode, EpisodeStatus, PodcastType, PodcastTypeDescription } from '../types/podcast';
+import { Episode, EpisodeStatus, PodcastType, PodcastTypeDescription, Podcast } from '../types/podcast';
 import { Profile } from '../types/profile';
 
 type HomeProfileScreenNavigationProp = NativeStackNavigationProp<
@@ -45,6 +46,40 @@ export const HomeProfileScreen: React.FC = () => {
   const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
   const [podcastTypeWithContent, setPodcastTypeWithContent] = useState<PodcastType[]>([]);
   
+  // Animation de pulsation
+  const pulseAnim = useRef(new Animated.Value(0.3)).current;
+  
+  // Démarrer l'animation de pulsation
+  useEffect(() => {
+    const startPulseAnimation = () => {
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.3,
+          duration: 1000,
+          useNativeDriver: true,
+        })
+      ]).start(() => {
+        if (loading) {
+          startPulseAnimation();
+        }
+      });
+    };
+    
+    if (loading) {
+      startPulseAnimation();
+    }
+    
+    return () => {
+      // Arrêter l'animation si le composant est démonté
+      pulseAnim.stopAnimation();
+    };
+  }, [loading, pulseAnim]);
+  
   // Créer un tableau des types de podcasts pour la section "Découvrir"
   const podcastTypeEntries = Object.entries(PodcastType).map(([key, value]) => ({
     key,
@@ -52,72 +87,98 @@ export const HomeProfileScreen: React.FC = () => {
     description: PodcastTypeDescription[key as keyof typeof PodcastTypeDescription]
   }));
 
-  useEffect(() => {
-    const loadListeningEpisodes = async () => {
-      try {
-        setLoading(true);
-        
-        // Récupérer les détails du profil si un profileId est fourni
-        if (profileId) {
-          const profileDetails = await ProfileService.getProfileById(profileId);
-          setActiveProfile(profileDetails);
-        }
-        
-        // Récupérer tous les podcasts
-        const podcasts = await PodcastService.getPodcasts();
-        
-        // Récupérer tous les épisodes en cours d'écoute
-        const listeningEps: ContinueListeningEpisode[] = [];
-        
-        podcasts.forEach(podcast => {
-          const podcastListeningEpisodes = podcast.episodes
-            .filter(episode => episode.status === EpisodeStatus.LISTENING)
-            .map(episode => ({
-              ...episode,
-              podcastName: podcast.name,
-              podcastId: podcast.id
-            }));
+  // Utiliser useFocusEffect pour recharger les données à chaque fois que l'écran est affiché
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadListeningEpisodes = async () => {
+        try {
+          setLoading(true);
           
-          listeningEps.push(...podcastListeningEpisodes);
-        });
-        
-        // Trier par date de dernière écoute (timestamp) décroissante
-        listeningEps.sort((a, b) => b.timestamp - a.timestamp);
-        
-        // Prendre les 5 premiers épisodes maximum
-        const uniquePodcastIds = new Set<string>();
-        const filteredEpisodes = listeningEps.filter(episode => {
-          // Ne pas inclure plus d'un épisode du même podcast
-          if (!uniquePodcastIds.has(episode.podcastId)) {
-            uniquePodcastIds.add(episode.podcastId);
-            return true;
+          // Récupérer les détails du profil si un profileId est fourni
+          if (profileId) {
+            const profileDetails = await ProfileService.getProfileById(profileId);
+            setActiveProfile(profileDetails);
           }
-          return false;
-        }).slice(0, 5);
-        
-        setListeningEpisodes(filteredEpisodes);
+          
+          // Récupérer tous les podcasts
+          const podcasts = await PodcastService.getPodcasts();
+          
+          // Récupérer tous les épisodes en cours d'écoute
+          const listeningEps: ContinueListeningEpisode[] = [];
+          
+          podcasts.forEach(podcast => {
+            const podcastListeningEpisodes = podcast.episodes
+              .filter(episode => episode.status === EpisodeStatus.LISTENING)
+              .map(episode => ({
+                ...episode,
+                podcastName: podcast.name,
+                podcastId: podcast.id
+              }));
+            
+            listeningEps.push(...podcastListeningEpisodes);
+          });
+          
+          // Trier par date de dernière écoute (timestamp) décroissante
+          listeningEps.sort((a, b) => b.timestamp - a.timestamp);
+          
+          // Prendre les 5 premiers épisodes maximum
+          const uniquePodcastIds = new Set<string>();
+          const filteredEpisodes = listeningEps.filter(episode => {
+            // Ne pas inclure plus d'un épisode du même podcast
+            if (!uniquePodcastIds.has(episode.podcastId)) {
+              uniquePodcastIds.add(episode.podcastId);
+              return true;
+            }
+            return false;
+          }).slice(0, 5);
+          
+          setListeningEpisodes(filteredEpisodes);
 
-        // Déterminer quels types de podcasts ont du contenu
-        const typesWithContent: PodcastType[] = [];
-        
-        // Pour chaque type de podcast, vérifier s'il existe au moins un podcast de ce type
-        for (const type of Object.values(PodcastType)) {
-          const podcastsOfType = await PodcastService.getPodcastsByType(type);
-          if (podcastsOfType.length > 0) {
-            typesWithContent.push(type);
-          }
+          // Déterminer quels types de podcasts ont du contenu
+          const typesWithContent: PodcastType[] = [];
+          
+          // Optimisation: filtrer les podcasts par type en mémoire au lieu de faire des appels multiples
+          // Créer un Map pour stocker les podcasts par type
+          const podcastsByType = new Map<string, Podcast[]>();
+          
+          // Initialiser le Map avec tous les types de podcast
+          Object.values(PodcastType).forEach(type => {
+            podcastsByType.set(type, []);
+          });
+          
+          // Classer chaque podcast dans les types correspondants
+          podcasts.forEach(podcast => {
+            podcast.types.forEach(type => {
+              const typePodcasts = podcastsByType.get(type) || [];
+              typePodcasts.push(podcast);
+              podcastsByType.set(type, typePodcasts);
+            });
+          });
+          
+          // Déterminer quels types ont du contenu
+          Object.values(PodcastType).forEach(type => {
+            const podcastsOfType = podcastsByType.get(type) || [];
+            if (podcastsOfType.length > 0) {
+              typesWithContent.push(type);
+            }
+          });
+          
+          setPodcastTypeWithContent(typesWithContent);
+        } catch (error) {
+          console.error('Erreur lors du chargement des épisodes en cours d\'\'écoute:', error);
+        } finally {
+          setLoading(false);
         }
-        
-        setPodcastTypeWithContent(typesWithContent);
-      } catch (error) {
-        console.error('Erreur lors du chargement des épisodes en cours d\'écoute:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadListeningEpisodes();
-  }, []);
+      };
+      
+      loadListeningEpisodes();
+      
+      // Fonction de nettoyage (optionnelle)
+      return () => {
+        // Annuler les requêtes en cours si nécessaire
+      };
+    }, [profileId]) // Dépendance à profileId pour recharger si le profil change
+  );
 
   const handleEpisodePress = (episode: ContinueListeningEpisode) => {
     // Navigation vers la fiche détaillée de l'épisode
@@ -252,24 +313,39 @@ export const HomeProfileScreen: React.FC = () => {
           <Typography variant="subtitle" style={styles.sectionTitle}>
             Découvrir
           </Typography>
-          
+
           <View style={styles.discoverContainer}>
-            {podcastTypeEntries
-              .filter(entry => podcastTypeWithContent.includes(entry.type))
-              .map((entry) => (
-                <TouchableOpacity 
-                  key={entry.key}
-                  style={styles.discoverItem}
-                  onPress={() => handleDiscoverPress(entry.type)}
-                >
-                  <Typography variant="subtitle" style={styles.discoverItemTitle}>
-                    {entry.type}
-                  </Typography>
-                  <Typography variant="caption" style={styles.discoverItemDescription}>
-                    {entry.description}
-                  </Typography>
-                </TouchableOpacity>
-              ))}
+            {loading ? (
+              // Afficher des cartes de chargement pulsantes
+              Array.from({ length: 4 }).map((_, index) => (
+                <Animated.View 
+                  key={`loading-${index}`}
+                  style={[
+                    styles.discoverItem,
+                    styles.loadingItem,
+                    { opacity: pulseAnim }
+                  ]}
+                />
+              ))
+            ) : (
+              // Afficher les cartes de thèmes une fois chargées
+              podcastTypeEntries
+                .filter(entry => podcastTypeWithContent.includes(entry.type))
+                .map((entry) => (
+                  <TouchableOpacity 
+                    key={entry.key}
+                    style={styles.discoverItem}
+                    onPress={() => handleDiscoverPress(entry.type)}
+                  >
+                    <Typography variant="subtitle" style={styles.discoverItemTitle}>
+                      {entry.type}
+                    </Typography>
+                    <Typography variant="caption" style={styles.discoverItemDescription}>
+                      {entry.description}
+                    </Typography>
+                  </TouchableOpacity>
+                ))
+            )}
           </View>
         </View>
       </ScrollView>
@@ -313,6 +389,11 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     marginBottom: SPACING.md,
+  },
+  sectionSubtitle: {
+    marginBottom: SPACING.md,
+    color: COLORS.textSecondary,
+    fontSize: 14,
   },
   episodesList: {
     paddingVertical: SPACING.sm,
@@ -374,5 +455,12 @@ const styles = StyleSheet.create({
   },
   discoverItemDescription: {
     color: COLORS.textSecondary,
+    fontSize: 12,
+  },
+  loadingItem: {
+    backgroundColor: COLORS.cardBackground,
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
