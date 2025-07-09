@@ -247,7 +247,7 @@ export const HomeProfileScreen: React.FC = () => {
               />
             ) : (
               <Image 
-                source={require('../../assets/avatar.webp')}
+                source={require('../../assets/avatar.png')}
                 style={styles.avatar}
               />
             )}

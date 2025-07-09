@@ -13,7 +13,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
     <View style={styles.loadingContainer}>
       <View style={styles.logoContainer}>
         <Image 
-          source={require('../../assets/logo.webp')} 
+          source={require('../../assets/logo.png')} 
           style={styles.logo} 
           resizeMode="contain"
         />

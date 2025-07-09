@@ -13,7 +13,7 @@ export const getAvatarImage = (index: number) => {
     case 1:
       return require('../../assets/avatar/avatar-1.webp');
     case 2:
-      return require('../../assets/avatar/avatar-3.webp');
+      return require('../../assets/avatar/avatar-2.webp');
     case 3:
       return require('../../assets/avatar/avatar-4.webp');
     case 4:
@@ -23,7 +23,7 @@ export const getAvatarImage = (index: number) => {
     case 6:
       return require('../../assets/avatar/avatar-7.webp');
     default:
-      return require('../../assets/avatar/avatar-2.webp'); // Avatar par défaut
+      return require('../../assets/avatar/avatar-3.webp'); // Avatar par défaut
   }
 };
 
