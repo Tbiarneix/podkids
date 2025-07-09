@@ -357,7 +357,6 @@ export const SettingsScreen: React.FC = () => {
               <View style={styles.section}>
                 {renderSettingItem('Ajouter un podcast', handleAddPodcast)}
                 {renderSettingItem('Modifier un podcast', handleEditPodcast)}
-                {renderSettingItem('Nettoyer les descriptions', handleCleanPodcastDescriptions)}
               </View>
 
               <View style={styles.section}>
