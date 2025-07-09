@@ -373,9 +373,9 @@ export const SettingsScreen: React.FC = () => {
                 />
               </View>
 
-              <View style={styles.section}>
+              {/* <View style={styles.section}>
                 {renderSettingItem('Vider le stockage', handleClearStorage, true, true)}
-              </View>
+              </View> */}
             </View>
           </ScrollView>
         </>
