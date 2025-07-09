@@ -2,7 +2,7 @@
   "expo": {
     "name": "podkids",
     "slug": "podkids",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.webp",
     "userInterfaceStyle": "light",
@@ -35,7 +35,8 @@
     "plugins": [
       "expo-asset",
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-audio"
     ]
   }
 }
