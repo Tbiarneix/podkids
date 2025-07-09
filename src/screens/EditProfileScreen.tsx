@@ -9,7 +9,8 @@ import {
   Text,
   FlatList,
   ActivityIndicator,
-  Modal
+  Modal,
+  Alert
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -46,6 +47,7 @@ export const EditProfileScreen: React.FC = () => {
   const [selectedAvatar, setSelectedAvatar] = useState(0);
   const [selectedAgeRanges, setSelectedAgeRanges] = useState<AgeRange[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
   // Obtenir les indices des avatars disponibles
   const avatarIndices = getAvatarIndices();
@@ -192,6 +194,50 @@ export const EditProfileScreen: React.FC = () => {
       });
     }
   };
+  
+  const handleDelete = async () => {
+    try {
+      // Activer le loader
+      setIsLoading(true);
+      
+      // Récupérer le profil pour avoir les tranches d'âge
+      const profile = await ProfileService.getProfileById(profileId);
+      if (!profile) {
+        throw new Error('Profil non trouvé');
+      }
+      
+      // Nettoyer les données des podcasts
+      await PodcastService.cleanAllPodcastData();
+      
+      // Supprimer le profil
+      await ProfileService.deleteProfile(profileId);
+      
+      // Désactiver le loader
+      setIsLoading(false);
+      
+      // Afficher une notification de succès et rediriger vers Settings
+      navigation.navigate('Notification', {
+        type: 'success' as const,
+        message: 'Le profil a bien été supprimé !',
+        redirectTo: 'Settings'
+      });
+    } catch (error) {
+      console.error('Erreur lors de la suppression du profil:', error);
+      
+      // Désactiver le loader en cas d'erreur
+      setIsLoading(false);
+      
+      // Afficher une notification d'erreur
+      navigation.navigate('Notification', {
+        type: 'error' as const,
+        message: 'Erreur lors de la suppression du profil'
+      });
+    }
+  };
+  
+  const confirmDelete = () => {
+    setShowDeleteConfirmation(true);
+  };
 
   if (loading) {
     return (
@@ -220,6 +266,41 @@ export const EditProfileScreen: React.FC = () => {
             <Typography variant="body" style={styles.loadingText}>
               Modification du profil en cours...
             </Typography>
+          </View>
+        </View>
+      </Modal>
+      
+      {/* Modal de confirmation de suppression */}
+      <Modal
+        visible={showDeleteConfirmation}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.confirmationContainer}>
+            <Typography variant="subtitle" style={styles.confirmationTitle}>
+              Supprimer le profil
+            </Typography>
+            <Typography variant="body" style={styles.confirmationText}>
+              Êtes-vous sûr de vouloir supprimer ce profil ? Cette action supprimera également tous les podcasts et ne peut pas être annulée.
+            </Typography>
+            <View style={styles.confirmationButtons}>
+              <Button
+                title="Non"
+                onPress={() => setShowDeleteConfirmation(false)}
+                style={styles.cancelButton}
+                variant="tertiary"
+              />
+              <Button
+                title="Oui"
+                onPress={() => {
+                  setShowDeleteConfirmation(false);
+                  handleDelete();
+                }}
+                style={[styles.deleteConfirmButton, { backgroundColor: '#d32f2f'}]}
+                variant="primary"
+              />
+            </View>
           </View>
         </View>
       </Modal>
@@ -289,6 +370,14 @@ export const EditProfileScreen: React.FC = () => {
         </View>
 
         <Button
+          title="Supprimer"
+          onPress={confirmDelete}
+          fullWidth
+          style={[styles.deleteButton, { backgroundColor: '#d32f2f' }]}
+          variant="primary"
+        />
+        
+        <Button
           title="Sauvegarder"
           onPress={handleSave}
           fullWidth
@@ -328,6 +417,48 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     textAlign: 'center',
   },
+  confirmationContainer: {
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 10,
+    padding: SPACING.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '80%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  confirmationTitle: {
+    marginBottom: SPACING.md,
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  confirmationText: {
+    marginBottom: SPACING.lg,
+    textAlign: 'center',
+  },
+  confirmationButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  cancelButton: {
+    flex: 1,
+    marginRight: SPACING.sm,
+  },
+  deleteConfirmButton: {
+    flex: 1,
+    marginLeft: SPACING.sm,
+    color: COLORS.text,
+  },
+  deleteButton: {
+    marginTop: SPACING.xl,
+    marginBottom: SPACING.md,
+  },
+  
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -384,7 +515,6 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   saveButton: {
-    marginTop: SPACING.xl,
     marginBottom: SPACING.xxxl,
   },
 });

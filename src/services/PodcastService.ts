@@ -141,7 +141,8 @@ export class PodcastService {
       const newPodcast: Podcast = {
         id: generateUniqueId(),
         name: feed.title || 'Podcast sans titre',
-        description: feed.description || '',
+        // Nettoyer automatiquement la description du podcast
+        description: feed.description ? RssParserService.cleanHtmlTags(feed.description) : '',
         cover: feed.imageUrl || feed.itunesImage || '',
         url: url,
         author: feed.itunesOwnerName || feed.itunesAuthor || 'Auteur inconnu',
@@ -149,17 +150,25 @@ export class PodcastService {
         ageRanges: ageRanges,
         subscription: false,
         deleteable: true, // Les podcasts ajoutés par l'utilisateur sont toujours supprimables
-        episodes: feed.items.map((item: RssFeedItem) => ({
-          id: generateUniqueId(),
-          name: item.title || 'Épisode sans titre',
-          description: item.description || item.contentEncoded || item.content || '',
-          cover: item.itunesImage || feed.imageUrl || feed.itunesImage || '',
-          url: item.enclosureUrl || '',
-          duration: convertDurationToSeconds(item.itunesDuration),
-          status: EpisodeStatus.TO_LISTEN,
-          timestamp: 0,
-          publicationDate: item.pubDate ? new Date(item.pubDate).getTime() : Date.now()
-        }))
+        episodes: feed.items.map((item: RssFeedItem) => {
+          // Récupérer la description brute de l'épisode
+          const rawDescription = item.description || item.contentEncoded || item.content || '';
+          
+          // Nettoyer automatiquement la description de l'épisode
+          const cleanDescription = RssParserService.cleanHtmlTags(rawDescription);
+          
+          return {
+            id: generateUniqueId(),
+            name: item.title || 'Épisode sans titre',
+            description: cleanDescription,
+            cover: item.itunesImage || feed.imageUrl || feed.itunesImage || '',
+            url: item.enclosureUrl || '',
+            duration: convertDurationToSeconds(item.itunesDuration),
+            status: EpisodeStatus.TO_LISTEN,
+            timestamp: 0,
+            publicationDate: item.pubDate ? new Date(item.pubDate).getTime() : Date.now()
+          };
+        })
       };
       
       // Récupérer la liste des IDs de podcasts
@@ -205,6 +214,11 @@ export class PodcastService {
         throw new Error('Podcast non trouvé');
       }
 
+      // Si une nouvelle description est fournie, la nettoyer automatiquement
+      if (updates.description) {
+        updates.description = RssParserService.cleanHtmlTags(updates.description);
+      }
+      
       const updatedPodcast = { ...podcast, ...updates };
       await AsyncStorage.setItem(`${PODCAST_PREFIX}${podcastId}`, JSON.stringify(updatedPodcast));
 
@@ -327,9 +341,15 @@ export class PodcastService {
         const existingEpisode = existingEpisodes.get(item.title);
         
         if (existingEpisode) {
+          // Récupérer la description brute de l'épisode
+          const rawDescription = item.description || item.contentEncoded || item.content || existingEpisode.description;
+          
+          // Nettoyer automatiquement la description
+          const cleanDescription = RssParserService.cleanHtmlTags(rawDescription);
+          
           return {
             ...existingEpisode,
-            description: item.description || item.contentEncoded || item.content || existingEpisode.description,
+            description: cleanDescription,
             cover: item.itunesImage || feed.imageUrl || existingEpisode.cover,
             url: item.enclosureUrl || existingEpisode.url || '',
             duration: convertDurationToSeconds(item.itunesDuration),
@@ -337,10 +357,16 @@ export class PodcastService {
           };
         } else {
           // Créer un nouvel épisode
+          // Récupérer la description brute de l'épisode
+          const rawDescription = item.description || item.contentEncoded || item.content || '';
+          
+          // Nettoyer automatiquement la description
+          const cleanDescription = RssParserService.cleanHtmlTags(rawDescription);
+          
           return {
             id: generateUniqueId(),
             name: item.title || 'Épisode sans titre',
-            description: item.description || item.contentEncoded || item.content || '',
+            description: cleanDescription,
             cover: item.itunesImage || feed.imageUrl || '',
             url: item.enclosureUrl || '',
             duration: convertDurationToSeconds(item.itunesDuration),
@@ -699,6 +725,99 @@ export class PodcastService {
       console.log('Nettoyage terminé. Toutes les données de podcasts ont été supprimées.');
     } catch (error) {
       console.error('Erreur lors du nettoyage des données de podcasts:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Nettoie les descriptions HTML des podcasts existants
+   * Cette fonction parcourt tous les podcasts stockés et nettoie leurs descriptions
+   * sans supprimer les podcasts eux-mêmes
+   */
+  static async cleanPodcastDescriptions(): Promise<void> {
+    try {
+      console.log('Nettoyage des descriptions HTML des podcasts...');
+      
+      // Récupérer la liste des IDs de podcasts
+      const podcastIdsJson = await AsyncStorage.getItem(PODCAST_IDS_KEY);
+      const podcastIds: string[] = podcastIdsJson ? JSON.parse(podcastIdsJson) : [];
+      
+      if (podcastIds.length === 0) {
+        console.log('Aucun podcast trouvé à nettoyer.');
+        return;
+      }
+      
+      console.log(`${podcastIds.length} podcasts trouvés. Nettoyage des descriptions...`);
+      
+      // Fonction de nettoyage des balises HTML (copie de RssParserService.cleanHtmlTags)
+      const cleanHtmlTags = (text: string): string => {
+        if (!text) return '';
+        
+        // Supprimer les sections CDATA avec une approche très agressive
+        text = text.replace(/<!\s*\[\s*CDATA\s*\[([\s\S]*?)\]\s*\]\s*>/gi, '$1');
+        
+        // Convertir certaines balises en sauts de ligne avant de les supprimer
+        text = text.replace(/<br\s*\/?>/gi, '\n');
+        text = text.replace(/<\/p>/gi, '\n');
+        text = text.replace(/<\/div>/gi, '\n');
+        text = text.replace(/<\/h[1-6]>/gi, '\n');
+        text = text.replace(/<\/li>/gi, '\n');
+        
+        // Extraire le contenu des liens
+        text = text.replace(/<a[^>]*>([\s\S]*?)<\/a>/gi, '$1');
+        
+        // Supprimer toutes les balises HTML restantes (approche très agressive)
+        text = text.replace(/<[^>]*>/g, '');
+        text = text.replace(/<[\s\S]*?>/g, '');
+        
+        // Nettoyer les entités HTML
+        text = text
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&apos;/g, "'")
+          .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+          .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+        
+        // Nettoyer les espaces et sauts de ligne multiples
+        text = text.replace(/\s{2,}/g, ' ');
+        text = text.replace(/\n{3,}/g, '\n\n');
+        
+        return text.trim();
+      };
+      
+      let cleanedCount = 0;
+      
+      // Parcourir chaque podcast et nettoyer sa description
+      for (const id of podcastIds) {
+        const podcastJson = await AsyncStorage.getItem(`${PODCAST_PREFIX}${id}`);
+        if (podcastJson) {
+          const podcast: Podcast = JSON.parse(podcastJson);
+          
+          // Nettoyer la description du podcast
+          if (podcast.description) {
+            const originalDesc = podcast.description;
+            podcast.description = cleanHtmlTags(originalDesc);
+            
+            // Nettoyer également les descriptions des épisodes si présents
+            if (podcast.episodes && podcast.episodes.length > 0) {
+              podcast.episodes = podcast.episodes.map(episode => ({
+                ...episode,
+                description: episode.description ? cleanHtmlTags(episode.description) : ''
+              }));
+            }
+            
+            // Sauvegarder le podcast avec les descriptions nettoyées
+            await AsyncStorage.setItem(`${PODCAST_PREFIX}${id}`, JSON.stringify(podcast));
+            cleanedCount++;
+          }
+        }
+      }
+      
+      console.log(`Nettoyage terminé. ${cleanedCount} podcasts ont été nettoyés.`);
+    } catch (error) {
+      console.error('Erreur lors du nettoyage des descriptions de podcasts:', error);
       throw error;
     }
   }

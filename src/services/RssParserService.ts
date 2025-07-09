@@ -207,6 +207,11 @@ export class RssParserService {
     const regex = new RegExp(`<${tagName}[^>]*>(.*?)<\/${tagName}>`, 'is');
     const match = regex.exec(xmlContent);
     if (match && match[1]) {
+      // Pour les descriptions et les contenus, nettoyer les balises HTML
+      if (tagName === 'description' || tagName === 'content' || tagName === 'content:encoded' || 
+          tagName === 'itunes:summary' || tagName === 'itunes:subtitle') {
+        return RssParserService.cleanHtmlTags(match[1].trim());
+      }
       return this.decodeXmlEntities(match[1].trim());
     }
     return undefined;
@@ -277,5 +282,47 @@ export class RssParserService {
       .replace(/&apos;/g, "'")
       .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
       .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+  }
+
+  /**
+   * Nettoie les balises HTML et les sections CDATA dans un texte
+   * Cette méthode est publique pour pouvoir être utilisée par d'autres services
+   * @param text Texte à nettoyer
+   * @returns Texte nettoyé
+   */
+  static cleanHtmlTags(text: string): string {
+    if (!text) return '';
+    
+    // Approche en deux étapes pour garantir le nettoyage complet
+    
+    // Étape 1: Pré-traitement des cas spéciaux
+    
+    // Supprimer complètement les sections CDATA (approche plus agressive)
+    text = text.replace(/<!\s*\[\s*CDATA\s*\[([\s\S]*?)\]\s*\]\s*>/gi, '$1');
+    
+    // Convertir certaines balises en sauts de ligne avant de les supprimer
+    text = text.replace(/<br\s*\/?>/gi, '\n');
+    text = text.replace(/<\/p>/gi, '\n');
+    text = text.replace(/<\/div>/gi, '\n');
+    text = text.replace(/<\/h[1-6]>/gi, '\n');
+    text = text.replace(/<\/li>/gi, '\n');
+    
+    // Extraire le contenu des liens
+    text = text.replace(/<a[^>]*>([\s\S]*?)<\/a>/gi, '$1');
+    
+    // Étape 2: Nettoyage complet et agressif
+    
+    // Supprimer toutes les balises HTML restantes (approche plus agressive)
+    text = text.replace(/<[\s\S]*?>/g, '');
+    
+    // Nettoyer les caractères spéciaux et les entités
+    text = RssParserService.decodeXmlEntities(text);
+    
+    // Nettoyer les espaces et sauts de ligne multiples
+    text = text.replace(/\s{2,}/g, ' ');
+    text = text.replace(/\n{3,}/g, '\n\n');
+    
+    // Nettoyer les espaces au début et à la fin
+    return text.trim();
   }
 }

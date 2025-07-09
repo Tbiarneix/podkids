@@ -149,35 +149,52 @@ export const SettingsScreen: React.FC = () => {
     }
   };
 
-  const handleClearStorage = () => {
+  const handleCleanPodcastDescriptions = async () => {
     Alert.alert(
-      "Vider le stockage",
-      "Êtes-vous sûr de vouloir vider tout le stockage ? Cette action effacera tous les profils, podcasts et paramètres. Cette opération est irréversible.",
+      'Nettoyer les descriptions',
+      'Souhaitez-vous nettoyer les descriptions HTML des podcasts ? Cette action supprimera les balises HTML visibles dans les descriptions sans supprimer les podcasts eux-mêmes.',
       [
         {
-          text: "Annuler",
-          style: "cancel"
+          text: 'Annuler',
+          style: 'cancel',
         },
         {
-          text: "Vider",
-          style: "destructive",
+          text: 'Confirmer',
           onPress: async () => {
+            setIsResetting(true);
             try {
-              // Afficher l'écran de chargement
-              setIsResetting(true);
-              
-              // Vider le stockage
-              await StorageUtils.clearAllStorage();
-              
-              // Masquer l'écran de chargement
+              await PodcastService.cleanPodcastDescriptions();
+              showToast('Descriptions nettoyées avec succès', 'success');
+            } catch (error) {
+              console.error('Erreur lors du nettoyage des descriptions:', error);
+              showToast('Erreur lors du nettoyage des descriptions', 'error');
+            } finally {
               setIsResetting(false);
-              
-              // Afficher un message de succès
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleClearStorage = async () => {
+    Alert.alert(
+      'Attention',
+      'Êtes-vous sûr de vouloir vider complètement le stockage ? Cette action supprimera tous les profils, podcasts et paramètres.',
+      [
+        {
+          text: 'Annuler',
+          style: 'cancel',
+        },
+        {
+          text: 'Confirmer',
+          style: 'destructive',
+          onPress: async () => {
+            setIsResetting(true);
+            try {
+              await StorageUtils.clearAllStorage();
               showToast('Stockage vidé avec succès', 'success');
-              
-              // Recharger les profils
               setProfiles([]);
-              
               // Rediriger vers l'écran de présentation
               navigation.navigate('Presentation');
             } catch (error) {
@@ -340,6 +357,7 @@ export const SettingsScreen: React.FC = () => {
               <View style={styles.section}>
                 {renderSettingItem('Ajouter un podcast', handleAddPodcast)}
                 {renderSettingItem('Modifier un podcast', handleEditPodcast)}
+                {renderSettingItem('Nettoyer les descriptions', handleCleanPodcastDescriptions)}
               </View>
 
               <View style={styles.section}>
@@ -356,9 +374,9 @@ export const SettingsScreen: React.FC = () => {
                 />
               </View>
 
-              {/* <View style={styles.section}>
+              <View style={styles.section}>
                 {renderSettingItem('Vider le stockage', handleClearStorage, true, true)}
-              </View> */}
+              </View>
             </View>
           </ScrollView>
         </>

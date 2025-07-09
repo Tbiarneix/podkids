@@ -4,7 +4,7 @@ import { COLORS, FONTS, SIZES, SPACING } from '../utils/theme';
 
 interface ButtonProps extends TouchableOpacityProps {
   title: string;
-  variant?: 'primary' | 'secondary' | 'outline';
+  variant?: 'primary' | 'secondary' | 'outline' | 'tertiary';
   fullWidth?: boolean;
 }
 
@@ -51,6 +51,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.primary,
   },
+  tertiary: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: COLORS.text,
+  },
   fullWidth: {
     width: '100%',
   },
@@ -66,5 +71,8 @@ const styles = StyleSheet.create({
   },
   outlineText: {
     color: COLORS.primary,
+  },
+  tertiaryText: {
+    color: COLORS.text,
   },
 });
