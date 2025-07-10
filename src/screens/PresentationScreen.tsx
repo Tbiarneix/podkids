@@ -43,9 +43,10 @@ export const PresentationScreen: React.FC = () => {
             PodKids est un projet indépendant développé par une équipe réduite.
             L'application est actuellement en version Beta et accessible
             gratuitement. Nous ne pouvons pas garantir qu'elle restera gratuite
-            lors de sa mise en production finale. Nous ne pouvons pas non plus
-            garantir la pérénité de vos données dans l'application.
-            Nous ne collectons AUCUNES de vos données.
+            lors de sa mise en production finale, mais en tant que beta-testeurs
+            vous aurez ensuite un accès privilégié à la version finale. Nous ne
+            pouvons pas non plus garantir la pérénité de vos données dans
+            l'application. Nous ne collectons AUCUNES de vos données.
           </Typography>
         </View>
       </ScrollView>

@@ -54,6 +54,7 @@ function MainApp() {
   const [initializing, setInitializing] = useState(true);
   const [initialRoute, setInitialRoute] = useState<keyof RootStackParamList>('Presentation');
   const [initialParams, setInitialParams] = useState<any>(undefined);
+  const [showSplashScreen, setShowSplashScreen] = useState(true);
   
   const { currentEpisode, currentPodcast, isPlayerVisible, closePlayer } = usePlayer();
 
@@ -91,12 +92,19 @@ function MainApp() {
     };
 
     checkAppState();
+    
+    // Afficher l'écran de chargement pendant au moins 2 secondes
+    const splashTimer = setTimeout(() => {
+      setShowSplashScreen(false);
+    }, 3000);
+    
+    return () => clearTimeout(splashTimer);
   }, []);
 
   // Définir la hauteur du PlayerBar pour la marge
   const playerBarHeight = 70; // Hauteur du PlayerBar en pixels
 
-  if (!fontsLoaded || initializing) {
+  if (!fontsLoaded || initializing || showSplashScreen) {
     return <LoadingScreen />;
   }
 

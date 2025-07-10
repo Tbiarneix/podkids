@@ -47,3 +47,10 @@ npm start
 ## Développement
 
 L'application utilise une bibliothèque de composants réutilisables pour une meilleure maintenabilité et cohérence visuelle.
+
+## Build
+
+Pour construire la version apk :
+
+`eas build --platform android --profile preview`
+
