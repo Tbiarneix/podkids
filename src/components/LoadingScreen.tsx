@@ -2,9 +2,11 @@ import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Image, Text, Animated, Easing } from 'react-native';
 import { COLORS } from '../utils/theme';
 
-interface LoadingScreenProps {}
+interface LoadingScreenProps {
+  message?: string;
+}
 
-export const LoadingScreen: React.FC<LoadingScreenProps> = () => {
+export const LoadingScreen: React.FC<LoadingScreenProps> = ({ message }) => {
   // Animation pour le logo (scale)  
   const logoScale = useRef(new Animated.Value(0.5)).current;
   // Animation pour le texte (opacity)
@@ -65,6 +67,11 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = () => {
         <Animated.Text style={[styles.appName, { opacity: textOpacity }]}>
           podKids
         </Animated.Text>
+        {message && (
+          <Animated.Text style={[styles.message, { opacity: textOpacity }]}>
+            {message}
+          </Animated.Text>
+        )}
       </View>
     </View>
   );
@@ -79,7 +86,7 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 40,
   },
   logo: {
     width: 200,
@@ -89,8 +96,13 @@ const styles = StyleSheet.create({
     fontSize: 48,
     fontWeight: 'bold',
     color: COLORS.primary,
-    marginBottom: 25,
+    marginTop: 20,
     fontFamily: 'Rubik_700Bold',
   },
-
+  message: {
+    fontSize: 18,
+    color: COLORS.text,
+    marginTop: 20,
+    textAlign: 'center',
+  },
 });

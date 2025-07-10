@@ -254,6 +254,14 @@
     "deleteable": false
   },
   {
+    "name": "Callisto",
+    "author": "Benjamin Brillaud",
+    "url": "https://feeds.acast.com/public/shows/64e36214a6f4ec001146bd18",
+    "AgeRange": ["BETWEEN_10_AND_12", "BETWEEN_13_AND_15", "OVER_15"],
+    "PodcastType": ["STORIES", "HISTORY", "HEROES"],
+    "deleteable": false
+  },
+  {
     "name": "Ma vie d'ado au collège",
     "author": "Bayard jeunesse",
     "url": "https://feed.ausha.co/ygdr9TqM3aYz",
