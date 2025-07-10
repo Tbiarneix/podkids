@@ -10,6 +10,7 @@ import {
   Rubik_700Bold 
 } from '@expo-google-fonts/rubik';
 import { PresentationScreen } from './src/screens/PresentationScreen';
+import { ExpiredAppScreen } from './src/screens/ExpiredAppScreen';
 import { PinCodeScreen } from './src/screens/PinCodeScreen';
 import { PinVerificationScreen } from './src/screens/PinVerificationScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
@@ -55,6 +56,7 @@ function MainApp() {
   const [initialRoute, setInitialRoute] = useState<keyof RootStackParamList>('Presentation');
   const [initialParams, setInitialParams] = useState<any>(undefined);
   const [showSplashScreen, setShowSplashScreen] = useState(true);
+  const [isAppExpired, setIsAppExpired] = useState(false);
   
   const { currentEpisode, currentPodcast, isPlayerVisible, closePlayer } = usePlayer();
 
@@ -62,6 +64,16 @@ function MainApp() {
   useEffect(() => {
     const checkAppState = async () => {
       try {
+        // Vérifier si l'application a expiré (après le 1er septembre 2025)
+        const currentDate = new Date();
+        const expirationDate = new Date('2027-09-01T00:00:00');
+        
+        if (currentDate > expirationDate) {
+          setIsAppExpired(true);
+          setInitializing(false);
+          return;
+        }
+        
         // Initialiser le service d'email
         EmailService.init();
         
@@ -106,6 +118,10 @@ function MainApp() {
 
   if (!fontsLoaded || initializing || showSplashScreen) {
     return <LoadingScreen />;
+  }
+  
+  if (isAppExpired) {
+    return <ExpiredAppScreen />;
   }
 
   return (
