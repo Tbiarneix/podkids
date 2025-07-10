@@ -33,8 +33,9 @@ export const ThemePodcastsScreen: React.FC = () => {
   const navigation = useNavigation<ThemePodcastsScreenNavigationProp>();
   const route = useRoute<ThemePodcastsScreenRouteProp>();
   const { theme, profileId } = route.params;
-  // Convertir le thème en PodcastType
-  const podcastTheme = theme as PodcastType;
+  // Convertir le thème en PodcastType sauf si c'est "all"
+  const isAllPodcasts = theme === 'all';
+  const podcastTheme = isAllPodcasts ? null : theme as PodcastType;
 
   const [loading, setLoading] = useState(true);
   const [podcasts, setPodcasts] = useState<Podcast[]>([]);
@@ -56,8 +57,8 @@ export const ThemePodcastsScreen: React.FC = () => {
         
         // Filtrer les podcasts par thème et tranche d'âge
         const filteredPodcasts = allPodcasts.filter(podcast => {
-          // Vérifier si le podcast appartient au thème sélectionné
-          const hasTheme = podcast.types.includes(podcastTheme);
+          // Si "Tous les podcasts" est sélectionné, ne pas filtrer par thème
+          const hasTheme = isAllPodcasts ? true : podcast.types.includes(podcastTheme!);
           
           // Vérifier si le podcast est adapté à l'âge du profil
           const hasMatchingAgeRange = podcast.ageRanges.some(ageRange => 
@@ -140,7 +141,7 @@ export const ThemePodcastsScreen: React.FC = () => {
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Typography variant="title" center style={styles.headerTitle}>
-          {theme}
+          {isAllPodcasts ? "Tous les podcasts" : theme}
         </Typography>
         <View style={styles.placeholder} />
       </View>

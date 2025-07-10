@@ -328,10 +328,27 @@ export const HomeProfileScreen: React.FC = () => {
                 />
               ))
             ) : (
-              // Afficher les cartes de thèmes une fois chargées
-              podcastTypeEntries
-                .filter(entry => podcastTypeWithContent.includes(entry.type))
-                .map((entry) => (
+              // Afficher d'abord la carte "Tous les podcasts"
+              [
+                <TouchableOpacity 
+                  key="all-podcasts"
+                  style={styles.discoverItem}
+                  onPress={() => navigation.navigate('ThemePodcasts', {
+                    theme: 'all',
+                    profileId: profileId || ''
+                  })}
+                >
+                  <Typography variant="subtitle" style={styles.discoverItemTitle}>
+                    Tous les podcasts
+                  </Typography>
+                  <Typography variant="caption" style={styles.discoverItemDescription}>
+                    Découvrir l'ensemble des podcasts disponibles
+                  </Typography>
+                </TouchableOpacity>,
+                // Puis afficher les cartes de thèmes
+                ...podcastTypeEntries
+                  .filter(entry => podcastTypeWithContent.includes(entry.type))
+                  .map((entry) => (
                   <TouchableOpacity 
                     key={entry.key}
                     style={styles.discoverItem}
@@ -345,6 +362,7 @@ export const HomeProfileScreen: React.FC = () => {
                     </Typography>
                   </TouchableOpacity>
                 ))
+              ]
             )}
           </View>
         </View>
